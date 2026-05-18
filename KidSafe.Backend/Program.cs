@@ -8,6 +8,7 @@ using KidSafe.Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +46,51 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title       = "KidSafe API",
+        Version     = "v1",
+        Description = "ASP.NET Core backend for KidSafe — AI-moderated child chat platform"
+    });
+
+    // JWT security definition
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name         = "Authorization",
+        Type         = SecuritySchemeType.Http,
+        Scheme       = "Bearer",
+        BearerFormat = "JWT",
+        In           = ParameterLocation.Header,
+        Description  = "Enter: Bearer {your JWT token}"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    // Group endpoints by tag
+    c.TagActionsBy(api =>
+    {
+        if (api.RelativePath?.StartsWith("auth")          == true) return ["Authentication"];
+        if (api.RelativePath?.StartsWith("messages")      == true) return ["Chat"];
+        if (api.RelativePath?.StartsWith("reports")       == true) return ["Reports"];
+        if (api.RelativePath?.StartsWith("admin")         == true) return ["Moderation"];
+        if (api.RelativePath?.StartsWith("dashboard")     == true) return ["Dashboard"];
+        if (api.RelativePath?.StartsWith("notifications") == true) return ["Notifications"];
+        if (api.RelativePath?.StartsWith("classes")       == true) return ["Classes"];
+        return [api.GroupName ?? "General"];
+    });
+    c.DocInclusionPredicate((_, _) => true);
+});
 
 // ── AI HTTP client ────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient<IAIService, AIService>(client =>
@@ -123,7 +169,16 @@ using (var scope = app.Services.CreateScope())
 app.UseErrorHandling();
 
 if (app.Environment.IsDevelopment())
+{
     app.UseCors("DevOpen");
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "KidSafe API v1");
+        c.RoutePrefix = "swagger";
+        c.DocumentTitle = "KidSafe API Docs";
+    });
+}
 else
     app.UseCors();
 
