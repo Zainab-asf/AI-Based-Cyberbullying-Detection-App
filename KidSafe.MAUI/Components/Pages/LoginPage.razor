@@ -8,7 +8,7 @@
     <!-- ── Left branding panel ── -->
     <div class="login-left">
         <div class="login-left-inner">
-            <i class="bi bi-shield-check-fill ks-logo-lg" style="margin-bottom:.85rem"></i>
+            <img src="img/mascot-buddy.jpeg" class="mascot-panel" alt="KidSafe Buddy" />
             <div class="login-brand-name">KidSafe</div>
             <div class="login-brand-tag">AI-Powered Safe Learning Platform</div>
 
@@ -39,7 +39,7 @@
 
             <!-- Header -->
             <div class="login-box-hd">
-                <div class="login-box-ico"><i class="bi bi-hand-wave-fill" style="font-size:2rem;color:var(--green)"></i></div>
+                <img src="img/mascot-icon.jpeg" class="login-app-icon" alt="KidSafe" />
                 <h1 class="login-box-title">Welcome Back</h1>
                 <p class="login-box-sub">Select your role or enter your credentials</p>
             </div>
@@ -127,60 +127,3 @@
     </div>
 </div>
 
-@code {
-    record RoleOption(string Role, string Label, string IconClass, string Email, string Password);
-
-    static readonly RoleOption[] _roleOptions =
-    [
-        new("Admin",   "Admin",   "bi-shield-fill",      "admin@kidsafe.app",  "Admin@123!"),
-        new("Teacher", "Teacher", "bi-mortarboard-fill", "teacher@demo.com",   "Demo@123!"),
-        new("Parent",  "Parent",  "bi-people-fill",      "parent@demo.com",    "Demo@123!"),
-        new("Child",   "Student", "bi-person-fill",      "student@demo.com",   "Demo@123!"),
-    ];
-
-    string _email = "", _password = "", _error = "";
-    bool   _busy, _showPwd;
-    string? _selectedRole;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        if (AuthState.IsAuthenticated) Redirect();
-    }
-
-    void SelectRole(RoleOption r)
-    {
-        _selectedRole = r.Role;
-        _email        = r.Email;
-        _password     = r.Password;
-        _error        = "";
-    }
-
-    async Task Submit()
-    {
-        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
-        { _error = "Email and password are required."; return; }
-
-        _busy = true; _error = "";
-        var r = await Api.LoginAsync(new LoginRequest(_email, _password));
-
-        if (r == null)
-            _error = "Invalid email or password.";
-        else if (r.Token == "pending")
-            _error = "Your account is awaiting approval.";
-        else if (r.Token == "disabled")
-            _error = "Your account has been disabled. Contact your administrator.";
-        else
-        {
-            await AuthState.SetUserAsync(r);
-            Redirect();
-        }
-        _busy = false;
-    }
-
-    void Redirect() => Nav.NavigateTo(
-        AuthState.CurrentUser?.Role == "Admin"   ? "/admin"      :
-        AuthState.IsChild                        ? "/child-home" :
-        AuthState.CurrentUser?.Role == "Teacher" ? "/teacher"    : "/dashboard",
-        replace: true);
-}

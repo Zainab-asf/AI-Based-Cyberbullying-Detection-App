@@ -1,0 +1,90 @@
+@inject AuthStateService AuthState
+@inject SidebarService Sidebar
+@inject NavigationManager Nav
+@implements IDisposable
+
+<!-- ── Mobile overlay ─────────────────────────────────────── -->
+<div class="sidebar-overlay @(Sidebar.IsDrawerOpen ? "visible" : "")"
+     @onclick="Sidebar.CloseDrawer"></div>
+
+<!-- ── Sidebar ────────────────────────────────────────────── -->
+<aside class="sidebar @(Sidebar.IsDrawerOpen ? "drawer-open" : "") @(Sidebar.IsCollapsed ? "collapsed" : "")">
+
+    <!-- Logo row + collapse toggle -->
+    <div class="sidebar-logo">
+        <img src="img/mascot-icon.jpeg" class="sb-app-icon" alt="KidSafe" />
+        <span class="sb-brand-text">KidSafe</span>
+        <button class="sb-collapse-btn"
+                @onclick="Sidebar.ToggleCollapsed"
+                title="@(Sidebar.IsCollapsed ? "Expand sidebar" : "Collapse sidebar")">
+            <i class="bi @(Sidebar.IsCollapsed ? "bi-chevron-double-right" : "bi-chevron-double-left")"></i>
+        </button>
+    </div>
+
+    <!-- Role-specific nav items supplied by each page -->
+    <nav class="sidebar-nav">
+        @NavContent
+    </nav>
+
+    <!-- Footer: dark mode toggle + user card -->
+    <div class="sidebar-footer">
+        <button class="nav-item sb-dark-btn"
+                @onclick="Sidebar.ToggleDarkMode"
+                title="@(Sidebar.IsDarkMode ? "Switch to light mode" : "Switch to dark mode")">
+            <span class="ni">
+                <i class="bi @(Sidebar.IsDarkMode ? "bi-sun-fill" : "bi-moon-fill")"></i>
+            </span>
+            <span>@(Sidebar.IsDarkMode ? "Light Mode" : "Dark Mode")</span>
+        </button>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-user">
+            <div class="sidebar-avatar">
+                <UserAvatar Name="@(AuthState.CurrentUser?.DisplayName ?? "U")"
+                            Size="sm"
+                            Role="@(AuthState.CurrentUser?.Role?.ToLower() ?? "")" />
+            </div>
+            <div>
+                <div class="sidebar-uname">@(AuthState.CurrentUser?.DisplayName ?? "User")</div>
+                <div class="sidebar-urole">@RoleLabel</div>
+            </div>
+            <button class="sidebar-logout" @onclick="DoLogout" title="Logout">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</aside>
+
+@code {
+    [Parameter] public RenderFragment? NavContent { get; set; }
+
+    string RoleIcon => AuthState.CurrentUser?.Role switch
+    {
+        "Admin"   => "bi-shield-fill",
+        "Teacher" => "bi-mortarboard-fill",
+        "Parent"  => "bi-people-fill",
+        _         => "bi-person-circle"
+    };
+
+    string RoleLabel => AuthState.CurrentUser?.Role switch
+    {
+        "Admin"   => "Administrator",
+        "Teacher" => "Teacher",
+        "Parent"  => "Parent",
+        "Child"   => "Student",
+        _         => "User"
+    };
+
+    protected override void OnInitialized()
+        => Sidebar.OnChange += StateHasChanged;
+
+    async Task DoLogout()
+    {
+        await AuthState.LogoutAsync();
+        Nav.NavigateTo("/login");
+    }
+
+    public void Dispose()
+        => Sidebar.OnChange -= StateHasChanged;
+}

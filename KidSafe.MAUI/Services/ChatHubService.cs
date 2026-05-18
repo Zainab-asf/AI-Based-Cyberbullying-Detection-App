@@ -21,6 +21,13 @@ public class ChatHubService : IAsyncDisposable
 
     public async Task StartAsync(string token, string baseUrl = "http://localhost:5000")
     {
+        if (string.IsNullOrEmpty(token) || token is "pending" or "disabled"
+            || AuthStateService.IsTokenExpired(token))
+        {
+            SetState(HubState.Disconnected);
+            return;
+        }
+
         if (_conn != null) await DisposeAsync();
 
         _conn = new HubConnectionBuilder()
@@ -54,16 +61,23 @@ public class ChatHubService : IAsyncDisposable
         _conn.On<int, string>("ClassUserTyping",
             (classId, name) => OnClassUserTyping?.Invoke(classId, name));
 
-        _conn.On<string, bool>("UserStatusChanged",
-            (uid, online) => OnUserStatusChanged?.Invoke(uid, online));
+        _conn.On<string, string, bool>("UserStatusChanged",
+            (uid, _, online) => OnUserStatusChanged?.Invoke(uid, online));
 
         _conn.Reconnecting += _ => { SetState(HubState.Reconnecting); return Task.CompletedTask; };
         _conn.Reconnected  += _ => { SetState(HubState.Connected);    return Task.CompletedTask; };
         _conn.Closed       += _ => { SetState(HubState.Disconnected); return Task.CompletedTask; };
 
         SetState(HubState.Connecting);
-        await _conn.StartAsync();
-        SetState(HubState.Connected);
+        try
+        {
+            await _conn.StartAsync();
+            SetState(HubState.Connected);
+        }
+        catch
+        {
+            SetState(HubState.Disconnected);
+        }
     }
 
     public Task JoinParentRoomAsync()              => Invoke("JoinParentRoom");

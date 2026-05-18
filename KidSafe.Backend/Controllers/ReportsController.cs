@@ -29,7 +29,7 @@ public class ReportsController : ControllerBase
     [HttpPost("abuse")]
     public async Task<IActionResult> ReportAbuse([FromBody] AbuseReportDto dto)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)) return Unauthorized();
         var report = new AbuseReport
         {
             ReporterId           = userId,
@@ -46,6 +46,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> GetAbuseReports()
     {
         var reports = await _db.AbuseReports
+            .AsNoTracking()
             .Include(r => r.Reporter)
             .OrderByDescending(r => r.Timestamp)
             .Select(r => new
@@ -65,7 +66,7 @@ public class ReportsController : ControllerBase
     [HttpPost("complaint")]
     public async Task<IActionResult> FileComplaint([FromBody] ComplaintDto dto)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)) return Unauthorized();
         var complaint = new Complaint
         {
             UserId        = userId,
@@ -80,11 +81,11 @@ public class ReportsController : ControllerBase
     [HttpGet("complaint")]
     public async Task<IActionResult> GetComplaints()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)) return Unauthorized();
         var role   = User.FindFirst(ClaimTypes.Role)?.Value;
 
         // Admins see all; others see only their own (SDD UC-16 least privilege)
-        var query = _db.Complaints.Include(c => c.User).AsQueryable();
+        var query = _db.Complaints.AsNoTracking().Include(c => c.User).AsQueryable();
         if (role != "Admin")
             query = query.Where(c => c.UserId == userId);
 

@@ -19,10 +19,10 @@ public class ParentController : ControllerBase
     [HttpGet("children")]
     public async Task<IActionResult> GetChildren()
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var role = User.FindFirst(ClaimTypes.Role)!.Value;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Parent";
 
-        var query = _db.ParentChildren.AsQueryable();
+        var query = _db.ParentChildren.AsNoTracking().AsQueryable();
         if (role != "Admin")
             query = query.Where(pc => pc.ParentId == uid);
 
@@ -47,8 +47,8 @@ public class ParentController : ControllerBase
     [HttpGet("children/{childId:int}/activity")]
     public async Task<IActionResult> GetChildActivity(int childId, [FromQuery] int take = 50)
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var role = User.FindFirst(ClaimTypes.Role)!.Value;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Parent";
 
         // Verify link unless admin
         if (role != "Admin")
@@ -59,6 +59,7 @@ public class ParentController : ControllerBase
         }
 
         var flagged = await _db.FlaggedMessages
+            .AsNoTracking()
             .Where(f => f.SenderId == childId)
             .OrderByDescending(f => f.Timestamp)
             .Take(take)
@@ -74,6 +75,7 @@ public class ParentController : ControllerBase
             .FirstOrDefaultAsync();
 
         var classes = await _db.ClassStudents
+            .AsNoTracking()
             .Where(cs => cs.StudentId == childId)
             .Include(cs => cs.Class)
             .Select(cs => new
@@ -94,8 +96,8 @@ public class ParentController : ControllerBase
     [HttpGet("children/{childId:int}/chat")]
     public async Task<IActionResult> GetChildChatHistory(int childId, [FromQuery] int take = 30)
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var role = User.FindFirst(ClaimTypes.Role)!.Value;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Parent";
 
         if (role != "Admin")
         {
@@ -105,6 +107,7 @@ public class ParentController : ControllerBase
         }
 
         var msgs = await _db.ChatMessages
+            .AsNoTracking()
             .Where(m => m.SenderId == childId)
             .Include(m => m.Sender)
             .OrderByDescending(m => m.Timestamp)

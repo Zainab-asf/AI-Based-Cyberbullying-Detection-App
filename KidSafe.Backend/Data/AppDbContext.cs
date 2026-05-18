@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<ContentItem>      ContentItems      => Set<ContentItem>();
     public DbSet<Submission>       Submissions       => Set<Submission>();
     public DbSet<ChatMessage>      ChatMessages      => Set<ChatMessage>();
+    public DbSet<DirectMessage>    DirectMessages    => Set<DirectMessage>();
     public DbSet<Notification>     Notifications     => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder m)
@@ -103,6 +104,14 @@ public class AppDbContext : DbContext
         m.Entity<ChatMessage>()
             .HasOne(cm => cm.Sender).WithMany()
             .HasForeignKey(cm => cm.SenderId).OnDelete(DeleteBehavior.Restrict);
+
+        // ── DirectMessage ─────────────────────────────────────────
+        m.Entity<DirectMessage>()
+            .HasOne(d => d.Sender).WithMany()
+            .HasForeignKey(d => d.SenderId).OnDelete(DeleteBehavior.Restrict);
+        m.Entity<DirectMessage>()
+            .HasOne(d => d.Receiver).WithMany()
+            .HasForeignKey(d => d.ReceiverId).OnDelete(DeleteBehavior.Restrict);
 
         // ── Notification ──────────────────────────────────────────
         m.Entity<Notification>()

@@ -1,0 +1,33 @@
+@* Hero profile card used on all role dashboards (Admin / Teacher / Parent / Child) *@
+
+<div class="dash-profile-card mb-2">
+    <div class="dpc-avatar">
+        <UserAvatar Name="@Name" Size="xl" Role="@RoleKey" />
+    </div>
+    <div class="dpc-info">
+        <div class="dpc-name">@Name</div>
+        <div class="dpc-role">@Role</div>
+        @if (!string.IsNullOrEmpty(Meta))
+        {
+            <div class="dpc-meta">@Meta</div>
+        }
+    </div>
+    @if (Actions != null)
+    {
+        <div class="dpc-actions">@Actions</div>
+    }
+</div>
+
+@code {
+    /// <summary>Display name — initials are extracted for the avatar.</summary>
+    [Parameter, EditorRequired] public string          Name    { get; set; } = "";
+    [Parameter]                 public string          Role    { get; set; } = "";
+    [Parameter]                 public string          Meta    { get; set; } = "";
+    /// <summary>admin | teacher | parent | child — tints avatar colour.</summary>
+    [Parameter]                 public string          RoleKey { get; set; } = "";
+    [Parameter]                 public RenderFragment? Actions { get; set; }
+
+    // Legacy param kept so existing call-sites don't break at compile time
+    [Parameter] public string? AvatarEmoji { get; set; }
+    [Parameter] public string  IconClass   { get; set; } = "";
+}

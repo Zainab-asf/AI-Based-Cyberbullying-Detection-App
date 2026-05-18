@@ -1,7 +1,19 @@
 <Router AppAssembly="typeof(MauiProgram).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        <ErrorBoundary>
+            <ChildContent>
+                <RouteView RouteData="routeData" />
+                <FocusOnNavigate RouteData="routeData" Selector="h1" />
+            </ChildContent>
+            <ErrorContent Context="ex">
+                <div style="padding:2rem;text-align:center;font-family:sans-serif">
+                    <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
+                    <h2 style="color:#e74c3c">Something went wrong</h2>
+                    <p style="color:#666;margin:.5rem 0">@ex.Message</p>
+                    <p style="color:#999;font-size:.85rem">Make sure the backend is running, then reload.</p>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
     </Found>
     <NotFound>
         <p>Sorry, there's nothing at this address.</p>

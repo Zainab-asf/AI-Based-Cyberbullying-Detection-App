@@ -1,6 +1,7 @@
 @page "/dashboard"
 @inject ApiService Api
 @inject AuthStateService AuthState
+@inject SidebarService Sidebar
 @inject ChatHubService Hub
 @inject FcmService Fcm
 @inject NavigationManager Nav
@@ -8,85 +9,62 @@
 
 <div class="app-root portal-parent">
 
-    <!-- Sidebar overlay (mobile) -->
-    <div class="sidebar-overlay @(_drawerOpen ? "visible" : "")" @onclick="() => _drawerOpen = false"></div>
-
-    <!-- ── Sidebar ── -->
-    <aside class="sidebar @(_drawerOpen ? "drawer-open" : "")">
-        <div class="sidebar-logo">
-            <i class="bi bi-shield-check-fill ks-logo-icon"></i>
-            <span>KidSafe</span>
-        </div>
-        <nav class="sidebar-nav">
-            <div class="sidebar-section">Overview</div>
-            <button class="nav-item active">
-                <span class="ni"><i class="bi bi-bar-chart-fill"></i></span><span>Dashboard</span>
-            </button>
-            <button class="nav-item" @onclick="LoadData">
-                <span class="ni"><i class="bi bi-arrow-clockwise"></i></span><span>Refresh</span>
-            </button>
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-section">Children</div>
-            @foreach (var child in _children)
-            {
-                <button class="nav-item @(_selectedChildId == child.ChildId ? "active" : "")"
-                        @onclick="() => SelectChild(child.ChildId)">
-                    <span class="ni">@(child.Avatar ?? "🧒")</span>
-                    <span>@child.Name</span>
+    <AppSidebar>
+        <NavContent>
+            <NavGroup Title="Overview">
+                <button class="nav-item active">
+                    <span class="ni"><i class="bi bi-bar-chart-fill"></i></span><span>Dashboard</span>
                 </button>
-            }
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-section">Alerts</div>
-            <button class="nav-item @(_selectedChildId == 0 ? "active" : "")" @onclick="ShowAllChildren">
-                <span class="ni"><i class="bi bi-exclamation-triangle-fill"></i></span><span>All Flags</span>
-                @if (_flaggedMessages.Count > 0) { <span class="nb">@_flaggedMessages.Count</span> }
-            </button>
-            <button class="nav-item" @onclick="ShowWatch">
-                <span class="ni"><i class="bi bi-eye-fill"></i></span><span>Watch</span>
-            </button>
-            <button class="nav-item" @onclick="ShowReview">
-                <span class="ni"><i class="bi bi-x-circle-fill"></i></span><span>Review</span>
-            </button>
-            <div class="sidebar-divider"></div>
-            <button class="nav-item" @onclick='() => Nav.NavigateTo("/notifications")'>
-                <span class="ni"><i class="bi bi-bell-fill"></i></span><span>Notifications</span>
-            </button>
-            <button class="nav-item" @onclick='() => Nav.NavigateTo("/profile")'>
-                <span class="ni"><i class="bi bi-person-circle"></i></span><span>Profile</span>
-            </button>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="sidebar-user">
-                <div class="sidebar-avatar" style="font-size:1.3rem;display:flex;align-items:center;justify-content:center">
-                    <i class="bi bi-people-fill" style="color:var(--green)"></i>
-                </div>
-                <div>
-                    <div class="sidebar-uname">@(AuthState.CurrentUser?.DisplayName ?? "Parent")</div>
-                    <div class="sidebar-urole">Parent</div>
-                </div>
-                <button class="sidebar-logout" @onclick="Logout" title="Logout">
-                    <i class="bi bi-box-arrow-right"></i>
+            </NavGroup>
+            <NavGroup Title="Children">
+                @foreach (var child in _children)
+                {
+                    <button class="nav-item @(_selectedChildId == child.ChildId ? "active" : "")"
+                            @onclick="() => SelectChild(child.ChildId)">
+                        <span class="ni"><UserAvatar Name="@child.Name" Size="xs" Role="child" /></span>
+                        <span>@child.Name</span>
+                    </button>
+                }
+            </NavGroup>
+            <NavGroup Title="Alerts">
+                <button class="nav-item @(_selectedChildId == 0 ? "active" : "")" @onclick="ShowAllChildren">
+                    <span class="ni"><i class="bi bi-exclamation-triangle-fill"></i></span><span>All Flags</span>
+                    @if (_flaggedMessages.Count > 0) { <span class="nb">@_flaggedMessages.Count</span> }
                 </button>
-            </div>
-        </div>
-    </aside>
+                <button class="nav-item" @onclick="ShowWatch">
+                    <span class="ni"><i class="bi bi-eye-fill"></i></span><span>Watch</span>
+                </button>
+                <button class="nav-item" @onclick="ShowReview">
+                    <span class="ni"><i class="bi bi-x-circle-fill"></i></span><span>Review</span>
+                </button>
+            </NavGroup>
+            <NavGroup Title="Account">
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/notifications")'>
+                    <span class="ni"><i class="bi bi-bell-fill"></i></span><span>Notifications</span>
+                </button>
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/profile")'>
+                    <span class="ni"><i class="bi bi-person-circle"></i></span><span>Profile</span>
+                </button>
+            </NavGroup>
+        </NavContent>
+    </AppSidebar>
 
     <!-- ── Main area ── -->
     <div class="main-area">
         <!-- Top header -->
         <header class="top-header">
-            <button class="sidebar-toggle" @onclick="() => _drawerOpen = !_drawerOpen" title="Menu">
+            <button class="sidebar-toggle" @onclick="Sidebar.ToggleDrawer" title="Menu">
                 <i class="bi bi-list"></i>
             </button>
             <div class="header-title">Parent Dashboard</div>
             @if (!string.IsNullOrEmpty(_fcmToast))
             {
-                <div class="badge badge-coral" style="font-size:.75rem;padding:.3rem .75rem">🔔 @_fcmToast</div>
+                <div class="badge badge-coral" style="font-size:.75rem;padding:.3rem .75rem"><i class="bi bi-bell-fill"></i> @_fcmToast</div>
             }
             <div class="header-actions" style="margin-left:auto">
-                <button class="header-btn" @onclick="LoadData" title="Refresh">🔄</button>
+                <button class="header-btn" @onclick="LoadData" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
                 <div class="header-profile">
-                    <div class="hp-avatar">👨‍👩‍👦</div>
+                    <UserAvatar Name="@(AuthState.CurrentUser?.DisplayName ?? "Parent")" Size="sm" Role="parent" />
                     <div>
                         <div class="hp-name">@(AuthState.CurrentUser?.DisplayName ?? "Parent")</div>
                         <div class="hp-role">Parent</div>
@@ -99,18 +77,15 @@
         <div class="page-content">
 
             <!-- Profile card -->
-            <div class="dash-profile-card" style="margin-bottom:1.25rem">
-                <div class="dpc-avatar">@(AuthState.CurrentUser?.AvatarEmoji ?? "👨‍👩‍👦")</div>
-                <div class="dpc-info">
-                    <div class="dpc-name">@(AuthState.CurrentUser?.DisplayName ?? "Parent")</div>
-                    <div class="dpc-role">Parent Account</div>
-                    <div class="dpc-meta">@_children.Count linked @(_children.Count == 1 ? "child" : "children") · @_flaggedMessages.Count flags to review</div>
-                </div>
-                <div class="dpc-actions">
-                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/profile")'>👤 Profile</button>
-                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/notifications")'>🔔 Alerts</button>
-                </div>
-            </div>
+            <DashboardProfileCard RoleKey="parent"
+                Name="@(AuthState.CurrentUser?.DisplayName ?? "Parent")"
+                Role="Parent Account"
+                Meta="@($"{_children.Count} linked {(_children.Count == 1 ? "child" : "children")} · {_flaggedMessages.Count} flags to review")">
+                <Actions>
+                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/profile")'><i class="bi bi-person-circle"></i> Profile</button>
+                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/notifications")'><i class="bi bi-bell-fill"></i> Alerts</button>
+                </Actions>
+            </DashboardProfileCard>
 
             <!-- Hero banner -->
             @if (_stats != null)
@@ -129,32 +104,14 @@
                             <div class="hero-chip"><i class="bi bi-bar-chart-fill"></i> @_stats.TotalFlagged Total Flags</div>
                         </div>
                     </div>
-                    <div class="hero-emoji"><i class="bi @heroIcon" style="font-size:2.5rem"></i></div>
+                    <img src="img/mascot-buddy.jpeg" class="mascot-banner" alt="KidSafe Buddy" style="width:90px;height:90px;object-fit:cover;border-radius:50%;flex-shrink:0;opacity:.92" />
                 </div>
 
                 <!-- Stats -->
                 <div class="grid-3" style="margin-bottom:1.5rem">
-                    <div class="stat-card">
-                        <div class="stat-icon green"><i class="bi bi-shield-check-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--green)">@(_stats.TotalFlagged == 0 ? "All" : "—")</div>
-                            <div class="stat-label">Safe</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon gold"><i class="bi bi-eye-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--warning)">@_stats.TotalWatch</div>
-                            <div class="stat-label">Watch</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon coral"><i class="bi bi-slash-circle-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--danger)">@_stats.TotalReview</div>
-                            <div class="stat-label">Review</div>
-                        </div>
-                    </div>
+                    <StatCard IconClass="bi-shield-check-fill" Value="@(_stats.TotalFlagged == 0 ? "All" : "—")" Label="Safe"   Color="green" />
+                    <StatCard IconClass="bi-eye-fill"          Value="@_stats.TotalWatch.ToString()"             Label="Watch"  Color="gold"  />
+                    <StatCard IconClass="bi-slash-circle-fill" Value="@_stats.TotalReview.ToString()"            Label="Review" Color="coral" />
                 </div>
             }
 
@@ -165,7 +122,7 @@
                 @foreach (var a in _liveAlerts.AsEnumerable().Reverse().Take(5))
                 {
                     <div class="alert-row @(a.Label == "Review" ? "alert-danger" : "alert-warn")">
-                        <div class="alert-ico">@(a.Label == "Review" ? "🚨" : "👁️")</div>
+                        <div class="alert-ico"><i class="bi @(a.Label == "Review" ? "bi-exclamation-octagon-fill" : "bi-eye-fill")" style="color:@(a.Label == "Review" ? "var(--danger)" : "var(--warning)")"></i></div>
                         <div style="flex:1;min-width:0">
                             <div class="alert-sender">@a.SenderName</div>
                             <div class="alert-msg">@a.MaskedMessage</div>
@@ -188,7 +145,7 @@
                     {
                         <div class="class-card @(_selectedChildId == child.ChildId ? "active-child" : "")"
                              @onclick="() => SelectChild(child.ChildId)">
-                            <div class="class-card-icon">@(child.Avatar ?? "👦")</div>
+                            <div class="class-card-icon"><UserAvatar Name="@child.Name" Size="sm" Role="child" /></div>
                             <div class="class-card-name">@child.Name</div>
                             <div class="class-card-sub">@child.Email</div>
                             <div class="class-card-stats">
@@ -201,14 +158,14 @@
 
             <!-- Flagged messages -->
             <div class="sec-hd">
-                <h2>📋 @(_selectedChildId > 0 ? $"{_children.FirstOrDefault(c => c.ChildId == _selectedChildId)?.Name}'s" : "All") Flagged Messages</h2>
+                <h2><i class="bi bi-flag-fill"></i> @(_selectedChildId > 0 ? $"{_children.FirstOrDefault(c => c.ChildId == _selectedChildId)?.Name}'s" : "All") Flagged Messages</h2>
             </div>
 
             <!-- Filter tabs -->
             <div class="page-tabs" style="margin-bottom:1rem">
                 <button class="ptab @(_filter == "All"    ? "active" : "")" @onclick="ShowAll">All</button>
-                <button class="ptab @(_filter == "Watch"  ? "active" : "")" @onclick="ShowWatch">👁️ Watch</button>
-                <button class="ptab @(_filter == "Review" ? "active" : "")" @onclick="ShowReview">🚫 Review</button>
+                <button class="ptab @(_filter == "Watch"  ? "active" : "")" @onclick="ShowWatch"><i class="bi bi-eye-fill"></i> Watch</button>
+                <button class="ptab @(_filter == "Review" ? "active" : "")" @onclick="ShowReview"><i class="bi bi-slash-circle-fill"></i> Review</button>
             </div>
 
             @if (_loading)
@@ -218,7 +175,7 @@
             else if (!FilteredMessages.Any())
             {
                 <div class="empty-block">
-                    <div class="empty-ico">✅</div>
+                    <div class="empty-ico"><i class="bi bi-shield-check-fill" style="font-size:2rem;color:var(--green)"></i></div>
                     <div class="empty-txt">No flagged messages</div>
                     <div class="empty-sub">Everything looks good!</div>
                 </div>
@@ -271,94 +228,3 @@
     <button class="mnav-item" @onclick="Logout"><i class="bi bi-box-arrow-right"></i><span>Logout</span></button>
 </nav>
 
-@code {
-    record ChildItem(int ChildId, string Name, string Email, string? Avatar, string Status);
-    record LiveAlert(string SenderName, string MaskedMessage, string Label, DateTime Time);
-
-    DashboardStats?          _stats;
-    List<FlaggedMessageItem> _flaggedMessages = new();
-    List<LiveAlert>          _liveAlerts      = new();
-    List<ChildItem>          _children        = new();
-    string _filter = "All";
-    bool   _loading = true;
-    bool   _drawerOpen;
-    string _fcmToast = "";
-    int    _selectedChildId = 0;   // 0 = all children
-
-    IEnumerable<FlaggedMessageItem> FilteredMessages =>
-        _filter == "All" ? _flaggedMessages : _flaggedMessages.Where(m => m.Label == _filter);
-
-    void ShowAllChildren() { _selectedChildId = 0; _filter = "All"; StateHasChanged(); }
-    void ShowAll()         { _filter = "All";    StateHasChanged(); }
-    void ShowWatch()       { _filter = "Watch";  StateHasChanged(); }
-    void ShowReview()      { _filter = "Review"; StateHasChanged(); }
-
-    async Task SelectChild(int childId)
-    {
-        _selectedChildId = childId;
-        _loading = true; StateHasChanged();
-        var activity = await Api.GetAsync<ChildActivity>($"parent/children/{childId}/activity");
-        if (activity != null)
-            _flaggedMessages = activity.Flagged.Select(f => new FlaggedMessageItem
-            {
-                Id = f.Id, SenderName = _children.FirstOrDefault(c => c.ChildId == childId)?.Name ?? "Child",
-                SenderId = childId, MaskedMessage = f.MaskedMessage,
-                Label = f.Label, Score = f.Score, Timestamp = f.Timestamp
-            }).ToList();
-        _loading = false; StateHasChanged();
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        if (!AuthState.IsAuthenticated || !AuthState.IsParentOrTeacher) { Nav.NavigateTo("/login"); return; }
-        Hub.OnFlaggedAlert += OnAlert;
-        Fcm.OnForegroundMessage += OnFcmToast;
-        await Hub.StartAsync(AuthState.CurrentUser!.Token);
-        await Hub.JoinParentRoomAsync();
-        await Fcm.InitAsync();
-        await LoadData();
-    }
-
-    async Task LoadData()
-    {
-        _loading = true; StateHasChanged();
-        _stats           = await Api.GetDashboardStatsAsync();
-        _flaggedMessages = await Api.GetFlaggedMessagesAsync();
-        _children        = await Api.GetAsync<List<ChildItem>>("parent/children") ?? new();
-        _loading = false; StateHasChanged();
-    }
-
-    record ChildActivity(List<FlagActivity> Flagged);
-    record FlagActivity(int Id, string MaskedMessage, string Label, double Score, DateTime Timestamp);
-
-    void OnAlert(int _, string name, string masked, string label, double score)
-    {
-        _liveAlerts.Add(new(name, masked, label, DateTime.UtcNow));
-        if (_liveAlerts.Count > 20) _liveAlerts.RemoveAt(0);
-        if (_stats != null)
-        {
-            if (label == "Watch") _stats.TotalWatch++;
-            else if (label == "Review") _stats.TotalReview++;
-            _stats.TotalFlagged = _stats.TotalWatch + _stats.TotalReview;
-        }
-        InvokeAsync(StateHasChanged);
-    }
-
-    void OnFcmToast(string title, string body, string label)
-    {
-        _fcmToast = $"{title}: {body}";
-        InvokeAsync(StateHasChanged);
-        Task.Delay(5000).ContinueWith(_ => { _fcmToast = ""; InvokeAsync(StateHasChanged); });
-    }
-
-    async Task Logout() { await AuthState.LogoutAsync(); Nav.NavigateTo("/login"); }
-
-    public async ValueTask DisposeAsync()
-    {
-        Hub.OnFlaggedAlert -= OnAlert;
-        Fcm.OnForegroundMessage -= OnFcmToast;
-        Fcm.Dispose();
-        await Hub.DisposeAsync();
-    }
-}

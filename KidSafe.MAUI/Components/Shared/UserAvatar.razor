@@ -1,0 +1,40 @@
+@* Initials-based avatar — replaces emoji avatars throughout the app *@
+
+<div class="ua ua-@Size @RoleClass" title="@Name" style="@_extraStyle">
+    @_initials
+</div>
+
+@code {
+    /// <summary>Display name — up to 2 initials extracted.</summary>
+    [Parameter, EditorRequired] public string Name    { get; set; } = "?";
+
+    /// <summary>xs | sm | md | lg | xl</summary>
+    [Parameter] public string Size { get; set; } = "md";
+
+    /// <summary>admin | teacher | parent | child — tints the background.</summary>
+    [Parameter] public string Role { get; set; } = "";
+
+    /// <summary>Optional inline style overrides.</summary>
+    [Parameter] public string Style { get; set; } = "";
+
+    string _initials    = "?";
+    string RoleClass    => string.IsNullOrWhiteSpace(Role) ? "" : $"ua-{Role.ToLower()}";
+    string _extraStyle  => Style;
+
+    protected override void OnParametersSet()
+    {
+        _initials = BuildInitials(Name);
+    }
+
+    static string BuildInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..Math.Min(2, parts[0].Length)].ToUpper(),
+            _ => $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+        };
+    }
+}

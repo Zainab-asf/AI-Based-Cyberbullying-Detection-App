@@ -19,9 +19,10 @@ public class NotificationsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetNotifications([FromQuery] int take = 30)
     {
-        var uid = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
 
         var notes = await _db.Notifications
+            .AsNoTracking()
             .Where(n => n.UserId == uid)
             .OrderByDescending(n => n.CreatedAt)
             .Take(take)
@@ -39,7 +40,7 @@ public class NotificationsController : ControllerBase
     [HttpPost("{id:int}/read")]
     public async Task<IActionResult> MarkRead(int id)
     {
-        var uid = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         var n   = await _db.Notifications.FindAsync(id);
         if (n == null || n.UserId != uid) return NotFound();
         n.IsRead = true;
@@ -52,7 +53,7 @@ public class NotificationsController : ControllerBase
     [HttpPost("read-all")]
     public async Task<IActionResult> MarkAllRead()
     {
-        var uid = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         await _db.Notifications
             .Where(n => n.UserId == uid && !n.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
@@ -64,7 +65,7 @@ public class NotificationsController : ControllerBase
     [HttpGet("unread-count")]
     public async Task<IActionResult> UnreadCount()
     {
-        var uid   = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         var count = await _db.Notifications.CountAsync(n => n.UserId == uid && !n.IsRead);
         return Ok(new { count });
     }

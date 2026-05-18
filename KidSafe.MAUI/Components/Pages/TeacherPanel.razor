@@ -1,78 +1,56 @@
 @page "/teacher"
 @inject ApiService Api
 @inject AuthStateService AuthState
+@inject SidebarService Sidebar
 @inject NavigationManager Nav
 
 <div class="app-root portal-teacher">
 
-    <!-- Sidebar overlay (mobile) -->
-    <div class="sidebar-overlay @(_drawerOpen ? "visible" : "")" @onclick="() => _drawerOpen = false"></div>
-
-    <!-- ── Sidebar ── -->
-    <aside class="sidebar @(_drawerOpen ? "drawer-open" : "")">
-        <div class="sidebar-logo">
-            <i class="bi bi-shield-check-fill ks-logo-icon"></i>
-            <span>KidSafe</span>
-        </div>
-        <nav class="sidebar-nav">
-            <div class="sidebar-section">Classroom</div>
-            <button class="nav-item active">
-                <span class="ni"><i class="bi bi-grid-fill"></i></span><span>Overview</span>
-            </button>
-            <button class="nav-item" @onclick="LoadData">
-                <span class="ni"><i class="bi bi-arrow-clockwise"></i></span><span>Refresh</span>
-            </button>
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-section">Classroom</div>
-            <button class="nav-item" @onclick='() => Nav.NavigateTo("/classes")'>
-                <span class="ni"><i class="bi bi-journal-bookmark-fill"></i></span><span>My Classes</span>
-            </button>
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-section">Monitoring</div>
-            <button class="nav-item">
-                <span class="ni"><i class="bi bi-person-fill"></i></span><span>Students</span>
-                @if (_children.Count > 0) { <span class="nb">@_children.Count</span> }
-            </button>
-            <button class="nav-item">
-                <span class="ni"><i class="bi bi-exclamation-triangle-fill"></i></span><span>Incidents</span>
-                @if (_flaggedMessages.Count > 0) { <span class="nb">@_flaggedMessages.Count</span> }
-            </button>
-            <div class="sidebar-divider"></div>
-            <button class="nav-item" @onclick='() => Nav.NavigateTo("/notifications")'>
-                <span class="ni"><i class="bi bi-bell-fill"></i></span><span>Notifications</span>
-            </button>
-            <button class="nav-item" @onclick='() => Nav.NavigateTo("/profile")'>
-                <span class="ni"><i class="bi bi-person-circle"></i></span><span>Profile</span>
-            </button>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="sidebar-user">
-                <div class="sidebar-avatar" style="font-size:1.3rem;display:flex;align-items:center;justify-content:center">
-                    <i class="bi bi-mortarboard-fill" style="color:var(--green)"></i>
-                </div>
-                <div>
-                    <div class="sidebar-uname">@(AuthState.CurrentUser?.DisplayName ?? "Teacher")</div>
-                    <div class="sidebar-urole">Teacher</div>
-                </div>
-                <button class="sidebar-logout" @onclick="Logout" title="Logout">
-                    <i class="bi bi-box-arrow-right"></i>
+    <AppSidebar>
+        <NavContent>
+            <NavGroup Title="Classroom">
+                <button class="nav-item active">
+                    <span class="ni"><i class="bi bi-grid-fill"></i></span><span>Overview</span>
                 </button>
-            </div>
-        </div>
-    </aside>
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/classes")'>
+                    <span class="ni"><i class="bi bi-journal-bookmark-fill"></i></span><span>My Classes</span>
+                </button>
+            </NavGroup>
+            <NavGroup Title="Monitoring">
+                <button class="nav-item">
+                    <span class="ni"><i class="bi bi-person-fill"></i></span><span>Students</span>
+                    @if (_children.Count > 0) { <span class="nb">@_children.Count</span> }
+                </button>
+                <button class="nav-item">
+                    <span class="ni"><i class="bi bi-exclamation-triangle-fill"></i></span><span>Incidents</span>
+                    @if (_flaggedMessages.Count > 0) { <span class="nb">@_flaggedMessages.Count</span> }
+                </button>
+            </NavGroup>
+            <NavGroup Title="Account">
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/notifications")'>
+                    <span class="ni"><i class="bi bi-bell-fill"></i></span><span>Notifications</span>
+                </button>
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/profile")'>
+                    <span class="ni"><i class="bi bi-person-circle"></i></span><span>Profile</span>
+                </button>
+            </NavGroup>
+        </NavContent>
+    </AppSidebar>
 
     <!-- ── Main area ── -->
     <div class="main-area">
         <!-- Top header -->
         <header class="top-header">
-            <button class="sidebar-toggle" @onclick="() => _drawerOpen = !_drawerOpen" title="Menu">
+            <button class="sidebar-toggle" @onclick="Sidebar.ToggleDrawer" title="Menu">
                 <i class="bi bi-list"></i>
             </button>
             <div class="header-title">Teacher Dashboard</div>
             <div class="header-actions" style="margin-left:auto">
-                <button class="header-btn" @onclick="LoadData" title="Refresh">🔄</button>
+                <button class="header-btn" @onclick="LoadData" title="Refresh">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
                 <div class="header-profile">
-                    <div class="hp-avatar">👩‍🏫</div>
+                    <UserAvatar Name="@(AuthState.CurrentUser?.DisplayName ?? "Teacher")" Size="sm" Role="teacher" />
                     <div>
                         <div class="hp-name">@(AuthState.CurrentUser?.DisplayName ?? "Teacher")</div>
                         <div class="hp-role">Teacher</div>
@@ -85,18 +63,15 @@
         <div class="page-content">
 
             <!-- Profile card -->
-            <div class="dash-profile-card" style="margin-bottom:1.25rem">
-                <div class="dpc-avatar">@(AuthState.CurrentUser?.AvatarEmoji ?? "👩‍🏫")</div>
-                <div class="dpc-info">
-                    <div class="dpc-name">@(AuthState.CurrentUser?.DisplayName ?? "Teacher")</div>
-                    <div class="dpc-role">Teacher Account</div>
-                    <div class="dpc-meta">@_children.Count students · @_flaggedMessages.Count incidents</div>
-                </div>
-                <div class="dpc-actions">
-                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/profile")'>👤 Profile</button>
-                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/classes")'>📚 Classes</button>
-                </div>
-            </div>
+            <DashboardProfileCard RoleKey="teacher"
+                Name="@(AuthState.CurrentUser?.DisplayName ?? "Teacher")"
+                Role="Teacher Account"
+                Meta="@($"{_children.Count} students · {_flaggedMessages.Count} incidents")">
+                <Actions>
+                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/profile")'><i class="bi bi-person-circle"></i> Profile</button>
+                    <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/classes")'><i class="bi bi-journal-bookmark-fill"></i> Classes</button>
+                </Actions>
+            </DashboardProfileCard>
 
             <div class="page-head">
                 <h1>Classroom Monitor</h1>
@@ -107,27 +82,9 @@
             @if (_stats != null)
             {
                 <div class="grid-3" style="margin-bottom:1.5rem">
-                    <div class="stat-card">
-                        <div class="stat-icon green"><i class="bi bi-person-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val">@_stats.TotalChildren</div>
-                            <div class="stat-label">Students</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon gold"><i class="bi bi-eye-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--warning)">@_stats.TotalWatch</div>
-                            <div class="stat-label">Under Watch</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon coral"><i class="bi bi-slash-circle-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--danger)">@_stats.TotalReview</div>
-                            <div class="stat-label">For Review</div>
-                        </div>
-                    </div>
+                    <StatCard IconClass="bi-person-fill"        Value="@_stats.TotalChildren.ToString()" Label="Students"    Color="green" />
+                    <StatCard IconClass="bi-eye-fill"           Value="@_stats.TotalWatch.ToString()"    Label="Under Watch" Color="gold"  />
+                    <StatCard IconClass="bi-slash-circle-fill"  Value="@_stats.TotalReview.ToString()"   Label="For Review"  Color="coral" />
                 </div>
             }
 
@@ -140,17 +97,28 @@
 
             <!-- Students at risk -->
             <div class="sec-hd"><h2><i class="bi bi-person-fill"></i> Students at Risk</h2></div>
-            <div class="risk-grid" style="margin-bottom:1.5rem">
-                @foreach (var c in _children)
-                {
-                    var rClass = c.FlagCount > 3 ? "risk-hi" : c.FlagCount > 0 ? "risk-md" : "risk-ok";
-                    <div class="risk-card @rClass">
-                        <div class="risk-av">@c.Avatar</div>
-                        <div class="risk-name">@c.Name</div>
-                        <div class="risk-stat">@c.FlagCount incident(s)</div>
-                    </div>
-                }
-            </div>
+            @if (_children.Any())
+            {
+                <div class="risk-grid" style="margin-bottom:1.5rem">
+                    @foreach (var c in _children)
+                    {
+                        var rClass = c.FlagCount > 3 ? "risk-hi" : c.FlagCount > 0 ? "risk-md" : "risk-ok";
+                        <div class="risk-card @rClass">
+                            <div class="risk-av"><UserAvatar Name="@c.Name" Size="xs" Role="child" /></div>
+                            <div class="risk-name">@c.Name</div>
+                            <div class="risk-stat">@c.FlagCount incident(s)</div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-block" style="margin-bottom:1.5rem">
+                    <div class="empty-ico"><i class="bi bi-shield-check-fill" style="font-size:2rem;color:var(--green)"></i></div>
+                    <div class="empty-txt">No students at risk</div>
+                    <div class="empty-sub">Classroom is safe!</div>
+                </div>
+            }
 
             <!-- Incidents table -->
             <div class="sec-hd"><h2><i class="bi bi-bar-chart-fill"></i> Recent Incidents</h2></div>
@@ -221,52 +189,3 @@
     <button class="mnav-item" @onclick="Logout"><i class="bi bi-box-arrow-right"></i><span>Logout</span></button>
 </nav>
 
-@code {
-    record ChildSummary(string Name, string Avatar, int FlagCount);
-
-    DashboardStats?          _stats;
-    List<FlaggedMessageItem> _flaggedMessages = new();
-    List<ChildSummary>       _children        = new();
-    bool   _loading = true;
-    bool   _drawerOpen;
-    string _toast   = "";
-
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        if (!AuthState.IsAuthenticated || AuthState.CurrentUser?.Role != "Teacher")
-        { Nav.NavigateTo("/login"); return; }
-        await LoadData();
-    }
-
-    async Task LoadData()
-    {
-        _loading = true; StateHasChanged();
-        _stats           = await Api.GetDashboardStatsAsync();
-        _flaggedMessages = await Api.GetFlaggedMessagesAsync();
-
-        var avatars = new[] { "😊","🎮","🦄","🌟","🎨","🐼","🦊","🐸","🦁","🐧" };
-        var rng     = new Random(42);
-        _children   = _flaggedMessages
-            .GroupBy(f => f.SenderName)
-            .Select(g => new ChildSummary(g.Key, avatars[rng.Next(avatars.Length)], g.Count()))
-            .OrderByDescending(c => c.FlagCount)
-            .ToList();
-
-        if (!_children.Any())
-            _children.Add(new ChildSummary("No incidents", "✅", 0));
-
-        _loading = false; StateHasChanged();
-    }
-
-    async Task FileComplaint(FlaggedMessageItem m)
-    {
-        var ok = await Api.FileComplaintAsync($"Incident: {m.SenderName} — {m.Label} (score {m.Score:P0})");
-        _toast = ok ? "📝 Complaint filed successfully" : "Failed to file complaint";
-        StateHasChanged();
-        await Task.Delay(3000);
-        _toast = ""; StateHasChanged();
-    }
-
-    async Task Logout() { await AuthState.LogoutAsync(); Nav.NavigateTo("/login"); }
-}

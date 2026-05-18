@@ -36,8 +36,18 @@ public class AIService : IAIService
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _http.PostAsync("/analyze", content);
-        response.EnsureSuccessStatusCode();
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.PostAsync("/analyze", content);
+        }
+        catch
+        {
+            return new AnalyzeResponseDto("safe", 0.0);
+        }
+
+        if (!response.IsSuccessStatusCode)
+            return new AnalyzeResponseDto("safe", 0.0);
 
         var responseJson = await response.Content.ReadAsStringAsync();
         var result = JsonSerializer.Deserialize<AnalyzeResponseDto>(responseJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

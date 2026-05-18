@@ -42,7 +42,7 @@ public class MessagesController : ControllerBase
     [HttpPost("send")]
     public async Task<IActionResult> Send(SendMessageDto dto)
     {
-        var senderId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var senderId)) return Unauthorized();
         var sender   = await _db.Users.FindAsync(senderId);
         if (sender == null) return Unauthorized();
 
@@ -65,11 +65,40 @@ public class MessagesController : ControllerBase
         };
     }
 
+    [HttpGet("history/{otherUserId:int}")]
+    public async Task<IActionResult> GetHistory(int otherUserId)
+    {
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
+
+        var messages = await _db.DirectMessages
+            .AsNoTracking()
+            .Where(d => (d.SenderId == uid && d.ReceiverId == otherUserId)
+                     || (d.SenderId == otherUserId && d.ReceiverId == uid))
+            .OrderBy(d => d.Timestamp)
+            .Take(100)
+            .Select(d => new
+            {
+                d.Id,
+                d.SenderId,
+                d.ReceiverId,
+                Content   = d.Label == "Watch"   ? d.Masked ?? d.Content
+                          : d.Label == "Review"  ? "[Message blocked]"
+                          : d.Content,
+                d.Label,
+                d.Score,
+                d.Timestamp
+            })
+            .ToListAsync();
+
+        return Ok(messages);
+    }
+
     [HttpGet("flagged")]
     [Authorize(Roles = "Parent,Teacher,Admin")]
     public async Task<IActionResult> GetFlagged()
     {
         var messages = await _db.FlaggedMessages
+            .AsNoTracking()
             .Include(f => f.Sender)
             .OrderByDescending(f => f.Timestamp)
             .Select(f => new
@@ -93,7 +122,7 @@ public class MessagesController : ControllerBase
     [HttpPost("class/{classId:int}/send")]
     public async Task<IActionResult> SendToClass(int classId, [FromBody] ClassMessageDto dto)
     {
-        var uid    = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         var sender = await _db.Users.FindAsync(uid);
         if (sender == null) return Unauthorized();
 

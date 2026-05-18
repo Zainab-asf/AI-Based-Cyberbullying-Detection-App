@@ -12,13 +12,43 @@ public sealed class AuthDelegatingHandler : DelegatingHandler
 
     public AuthDelegatingHandler(AuthStateService auth) => _auth = auth;
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var token = _auth.CurrentUser?.Token;
-        if (!string.IsNullOrEmpty(token) && token is not ("pending" or "disabled"))
+        if (!string.IsNullOrEmpty(token)
+            && token is not ("pending" or "disabled")
+            && !AuthStateService.IsTokenExpired(token))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        return base.SendAsync(request, cancellationToken);
+        HttpResponseMessage response;
+        try
+        {
+            response = await base.SendAsync(request, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            // Server is offline / refused connection — swallow so the debugger
+            // doesn't treat this as "user-unhandled". ApiService callers all
+            // check IsSuccessStatusCode or catch the null return.
+            System.Diagnostics.Debug.WriteLine($"[KidSafe] Server unreachable: {ex.Message}");
+            return new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable)
+            {
+                ReasonPhrase = "Server unreachable"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            // Timeout
+            return new HttpResponseMessage(System.Net.HttpStatusCode.RequestTimeout)
+            {
+                ReasonPhrase = "Request timed out"
+            };
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            try { await _auth.LogoutAsync(); } catch { /* best-effort logout on 401 */ }
+
+        return response;
     }
 }

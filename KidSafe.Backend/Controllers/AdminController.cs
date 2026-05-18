@@ -86,9 +86,10 @@ public class AdminController : ControllerBase
         User parent;
         if (hasExistingParent)
         {
-            parent = await _db.Users.FindAsync(dto.ExistingParentId!.Value)
-                     ?? throw new Exception("Parent user not found.");
-            if (parent.Role != "Parent") return BadRequest("Selected user is not a Parent.");
+            var foundParent = await _db.Users.FindAsync(dto.ExistingParentId!.Value);
+            if (foundParent == null) return BadRequest("Parent user not found.");
+            if (foundParent.Role != "Parent") return BadRequest("Selected user is not a Parent.");
+            parent = foundParent;
         }
         else
         {
@@ -150,6 +151,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _db.Users
+            .AsNoTracking()
             .Select(u => new { u.Id, u.Email, u.DisplayName, u.Role, u.Status, u.CreatedAt })
             .OrderBy(u => u.CreatedAt)
             .ToListAsync();
@@ -160,6 +162,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetPendingTeachers()
     {
         var pending = await _db.Users
+            .AsNoTracking()
             .Where(u => u.Status == "pending")
             .Select(u => new { u.Id, u.Email, u.DisplayName, u.Role, u.CreatedAt })
             .ToListAsync();
@@ -181,7 +184,8 @@ public class AdminController : ControllerBase
     [HttpPost("users/{id:int}/disable")]
     public async Task<IActionResult> DisableUser(int id)
     {
-        var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var adminIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(adminIdClaim, out var adminId)) return Unauthorized();
         if (id == adminId) return BadRequest("Cannot disable your own account.");
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
@@ -195,7 +199,8 @@ public class AdminController : ControllerBase
     [HttpPost("moderation")]
     public async Task<IActionResult> ApplyAction([FromBody] ApplyModerationDto dto)
     {
-        var actorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var actorIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(actorIdClaim, out var actorId)) return Unauthorized();
         var target  = await _db.Users.FindAsync(dto.TargetUserId);
         if (target == null) return NotFound("Target user not found.");
 
@@ -224,6 +229,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetModerationHistory()
     {
         var history = await _db.ModerationActions
+            .AsNoTracking()
             .Include(ma => ma.Actor)
             .Include(ma => ma.TargetUser)
             .OrderByDescending(ma => ma.CreatedAt)
@@ -248,6 +254,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetParentLinks()
     {
         var links = await _db.ParentChildren
+            .AsNoTracking()
             .Include(pc => pc.Parent)
             .Include(pc => pc.Child)
             .Select(pc => new

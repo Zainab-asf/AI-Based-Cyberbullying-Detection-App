@@ -27,6 +27,7 @@ public class DashboardController : ControllerBase
         var totalReports    = await _db.AbuseReports.CountAsync();
 
         var recentActivity = await _db.FlaggedMessages
+            .AsNoTracking()
             .Include(f => f.Sender)
             .OrderByDescending(f => f.Timestamp)
             .Take(10)

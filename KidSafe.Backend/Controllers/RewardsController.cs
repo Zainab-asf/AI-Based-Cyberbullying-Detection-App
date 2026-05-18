@@ -26,8 +26,8 @@ public class RewardsController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyRewards()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var reward = await _db.Rewards.FirstOrDefaultAsync(r => r.UserId == userId);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)) return Unauthorized();
+        var reward = await _db.Rewards.AsNoTracking().FirstOrDefaultAsync(r => r.UserId == userId);
         if (reward == null) return NotFound();
 
         var badges = JsonSerializer.Deserialize<List<string>>(reward.Badges) ?? new();
@@ -47,7 +47,7 @@ public class RewardsController : ControllerBase
     [HttpPost("fcm-token")]
     public async Task<IActionResult> UpdateFcmToken([FromBody] FcmTokenDto dto)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)) return Unauthorized();
         var role   = User.FindFirst(ClaimTypes.Role)?.Value;
         var user   = await _db.Users.FindAsync(userId);
         if (user == null) return NotFound();

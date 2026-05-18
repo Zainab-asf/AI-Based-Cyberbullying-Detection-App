@@ -61,10 +61,25 @@ public sealed class ModerationWorker : BackgroundService
             {
                 reward.Points       += 10;
                 reward.SafeMessages += 1;
-                await AwardBadgeIfEligibleAsync(db, reward);
+                AwardBadgeIfEligible(reward);
             }
 
-            // Skip SignalR push for class group messages (ReceiverId == 0)
+            // Persist direct message so receiver can load history
+            if (job.ReceiverId > 0)
+            {
+                db.DirectMessages.Add(new KidSafe.Backend.Data.Entities.DirectMessage
+                {
+                    SenderId   = job.SenderId,
+                    ReceiverId = job.ReceiverId,
+                    Content    = job.OriginalMessage,
+                    Label      = "Safe",
+                    Score      = job.Score
+                });
+            }
+
+            await db.SaveChangesAsync(ct);
+
+            // Deliver via SignalR (ReceiverId == 0 means class group — handled separately)
             if (job.ReceiverId > 0)
             {
                 await _hub.Clients
@@ -102,8 +117,23 @@ public sealed class ModerationWorker : BackgroundService
                     job.SenderId, job.SenderName,
                     job.MaskedMessage, job.Label, job.Score);
 
+            // Persist direct message for Watch/Review too
+            if (job.ReceiverId > 0)
+            {
+                db.DirectMessages.Add(new KidSafe.Backend.Data.Entities.DirectMessage
+                {
+                    SenderId   = job.SenderId,
+                    ReceiverId = job.ReceiverId,
+                    Content    = job.OriginalMessage,
+                    Label      = job.Label,
+                    Score      = job.Score,
+                    Masked     = job.MaskedMessage
+                });
+                await db.SaveChangesAsync(ct);
+            }
+
             // Deliver masked copy to receiver for Watch (Review is blocked)
-            if (job.Label == AppConstants.AILabels.Watch)
+            if (job.Label == AppConstants.AILabels.Watch && job.ReceiverId > 0)
             {
                 await _hub.Clients
                     .Group($"user_{job.ReceiverId}")
@@ -113,7 +143,11 @@ public sealed class ModerationWorker : BackgroundService
         }
     }
 
-    private static async Task AwardBadgeIfEligibleAsync(AppDbContext db, Reward reward)
+    /// <summary>
+    /// Checks if a new badge should be awarded and updates the reward entity in-memory.
+    /// The caller is responsible for calling SaveChangesAsync.
+    /// </summary>
+    private static void AwardBadgeIfEligible(Reward reward)
     {
         var badges = System.Text.Json.JsonSerializer
             .Deserialize<List<string>>(reward.Badges) ?? [];
@@ -134,7 +168,6 @@ public sealed class ModerationWorker : BackgroundService
             badges.Add(newBadge);
             reward.Badges     = System.Text.Json.JsonSerializer.Serialize(badges);
             reward.BadgeLevel = newBadge;
-            await db.SaveChangesAsync();
         }
     }
 }

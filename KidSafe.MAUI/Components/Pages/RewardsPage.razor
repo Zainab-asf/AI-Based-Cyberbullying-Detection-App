@@ -1,103 +1,90 @@
 @page "/rewards"
 @inject AuthStateService AuthState
+@inject SidebarService Sidebar
 @inject NavigationManager Nav
 
-<div class="chat-root">
+<div class="app-root">
 
-    <!-- Header -->
-    <div class="chat-hd">
-        <button class="chat-hd-btn" @onclick="NavHome" title="Back">
-            <i class="bi bi-arrow-left"></i>
-        </button>
-        <div style="flex:1;text-align:center">
-            <div class="chat-hd-name">My Rewards</div>
-        </div>
-        <button class="chat-hd-btn" @onclick="NavHome" title="Chat">
-            <i class="bi bi-house-fill"></i>
-        </button>
-    </div>
+    <AppSidebar>
+        <NavContent>
+            <NavGroup Title="My Space">
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/child-home")'>
+                    <span class="ni"><i class="bi bi-house-fill"></i></span><span>Home</span>
+                </button>
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/chat")'>
+                    <span class="ni"><i class="bi bi-chat-fill"></i></span><span>Chat</span>
+                </button>
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/classes")'>
+                    <span class="ni"><i class="bi bi-journal-bookmark-fill"></i></span><span>Courses</span>
+                </button>
+            </NavGroup>
+            <NavGroup Title="Progress">
+                <button class="nav-item active">
+                    <span class="ni"><i class="bi bi-trophy-fill"></i></span><span>Rewards</span>
+                </button>
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/notifications")'>
+                    <span class="ni"><i class="bi bi-bell-fill"></i></span><span>Notifications</span>
+                </button>
+            </NavGroup>
+            <NavGroup Title="Account">
+                <button class="nav-item" @onclick='() => Nav.NavigateTo("/profile")'>
+                    <span class="ni"><i class="bi bi-person-circle"></i></span><span>Profile</span>
+                </button>
+            </NavGroup>
+        </NavContent>
+    </AppSidebar>
 
-    <div class="rew-scroll">
-        <!-- Hero points card -->
-        <div class="rew-hero">
-            <div class="rew-pts-lbl">Safety Points</div>
-            <div class="rew-pts">@_points</div>
-            <div class="rew-bar-wrap">
-                <div class="rew-bar-fill" style="width:@BarWidth%"></div>
+    <div class="main-area">
+        <header class="top-header">
+            <button class="sidebar-toggle" @onclick="Sidebar.ToggleDrawer" title="Menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="header-title">
+                <i class="bi bi-trophy-fill" style="color:var(--warning)"></i> My Rewards
             </div>
-            <div class="rew-next">@PointsToNext pts to next badge</div>
-        </div>
+            <div class="header-actions" style="margin-left:auto">
+                <button class="header-btn" @onclick='() => Nav.NavigateTo("/child-home")' title="Back to Home">
+                    <i class="bi bi-house-fill"></i>
+                </button>
+            </div>
+        </header>
 
-        <!-- Badges -->
-        <div style="padding:1rem 1rem 0">
+        <div class="page-content">
+
+            <!-- Hero points card -->
+            <div class="rew-hero" style="border-radius:var(--r-lg);margin-bottom:1.25rem">
+                <div class="rew-pts-lbl">Safety Points</div>
+                <div class="rew-pts">@_points</div>
+                <div class="rew-bar-wrap">
+                    <div class="rew-bar-fill" style="width:@BarWidth%"></div>
+                </div>
+                <div class="rew-next">@PointsToNext pts to next badge</div>
+            </div>
+
+            <!-- Badges -->
             <div class="sec-hd">
                 <h2><i class="bi bi-award-fill" style="color:var(--warning)"></i> Badges</h2>
             </div>
-        </div>
-        <div class="badge-shelf">
-            @foreach (var b in _badges)
-            {
-                <div class="rew-badge @(b.Unlocked ? "unlocked" : "locked")">
-                    <div class="rew-badge-ico">
-                        <i class="bi @b.IconClass" style="font-size:1.6rem;color:@b.Color"></i>
-                    </div>
-                    <div class="rew-badge-name">@b.Name</div>
-                    <div class="rew-badge-pts">@b.Pts pts</div>
-                    @if (b.Unlocked)
-                    {
-                        <div class="rew-badge-earned">
-                            <i class="bi bi-check-circle-fill"></i> Earned
+            <div class="badge-shelf">
+                @foreach (var b in _badges)
+                {
+                    <div class="rew-badge @(b.Unlocked ? "unlocked" : "locked")">
+                        <div class="rew-badge-ico">
+                            <i class="bi @b.IconClass" style="font-size:1.6rem;color:@b.Color"></i>
                         </div>
-                    }
-                </div>
-            }
+                        <div class="rew-badge-name">@b.Name</div>
+                        <div class="rew-badge-pts">@b.Pts pts</div>
+                        @if (b.Unlocked)
+                        {
+                            <div class="rew-badge-earned">
+                                <i class="bi bi-check-circle-fill"></i> Earned
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
         </div>
     </div>
-
-    <!-- Bottom nav -->
-    <nav class="mobile-nav">
-        <button class="mnav-item" @onclick='() => Nav.NavigateTo("/child-home")'>
-            <i class="bi bi-house-fill"></i><span>Home</span>
-        </button>
-        <button class="mnav-item" @onclick='() => Nav.NavigateTo("/chat")'>
-            <i class="bi bi-chat-fill"></i><span>Chat</span>
-        </button>
-        <button class="mnav-item" @onclick='() => Nav.NavigateTo("/notifications")'>
-            <i class="bi bi-bell-fill"></i><span>Alerts</span>
-        </button>
-        <button class="mnav-item active">
-            <i class="bi bi-trophy-fill"></i><span>Rewards</span>
-        </button>
-        <button class="mnav-item" @onclick='() => Nav.NavigateTo("/profile")'>
-            <i class="bi bi-person-circle"></i><span>Profile</span>
-        </button>
-    </nav>
 </div>
 
-@code {
-    int _points;
-    record B(string IconClass, string Color, string Name, int Pts, bool Unlocked);
-    List<B> _badges = new();
-
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        if (!AuthState.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        _points = 0;
-        _badges = new()
-        {
-            new("bi-chat-dots-fill",   "#27AE60", "Safe Chatter",   100,  _points >= 100),
-            new("bi-star-fill",        "#F1C40F", "Kind Star",      500,  _points >= 500),
-            new("bi-lightning-fill",   "#2980B9", "Cyber Hero",    1000,  _points >= 1000),
-            new("bi-mortarboard-fill", "#8E44AD", "Chat Scholar",  2000,  _points >= 2000),
-            new("bi-trophy-fill",      "#E67E22", "Safety King",   5000,  _points >= 5000),
-            new("bi-rocket-takeoff-fill","#E74C3C","Legend",       10000, _points >= 10000),
-        };
-    }
-
-    int BarWidth => _badges.FirstOrDefault(b => !b.Unlocked) is { } next
-        ? (int)Math.Min(100, (_points / (double)next.Pts) * 100) : 100;
-    int PointsToNext => Math.Max(0, (_badges.FirstOrDefault(b => !b.Unlocked)?.Pts ?? 0) - _points);
-
-    void NavHome() => Nav.NavigateTo("/child-home");
-}

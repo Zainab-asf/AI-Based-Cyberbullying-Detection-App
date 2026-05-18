@@ -1,28 +1,24 @@
 @page "/classes"
 @inject ApiService Api
 @inject AuthStateService AuthState
+@inject SidebarService Sidebar
 @inject ChatHubService Hub
 @inject NavigationManager Nav
 @implements IAsyncDisposable
 
-<div class="@(IsDesktop ? "app-root" : "mobile-root")">
+<div class="app-root">
 
-    @if (IsDesktop)
-    {
-        <!-- Sidebar for teacher/admin -->
-        <aside class="sidebar">
-            <div class="sidebar-logo">
-                <i class="bi bi-shield-check-fill ks-logo-icon"></i>
-                <span>KidSafe</span>
-            </div>
-            <nav class="sidebar-nav">
-                <div class="sidebar-section">Navigation</div>
-                <button class="nav-item" @onclick='() => Nav.NavigateTo("/")'>
-                    <span class="ni"><i class="bi bi-house-fill"></i></span><span>Dashboard</span>
+    <AppSidebar>
+        <NavContent>
+            <NavGroup Title="Navigation">
+                <button class="nav-item" @onclick="GoBack">
+                    <span class="ni"><i class="bi bi-arrow-left"></i></span><span>Back</span>
                 </button>
                 <button class="nav-item active">
                     <span class="ni"><i class="bi bi-journal-bookmark-fill"></i></span><span>Classes</span>
                 </button>
+            </NavGroup>
+            <NavGroup Title="Account">
                 <button class="nav-item" @onclick='() => Nav.NavigateTo("/notifications")'>
                     <span class="ni"><i class="bi bi-bell-fill"></i></span><span>Notifications</span>
                     @if (_unreadCount > 0) { <span class="nb">@_unreadCount</span> }
@@ -30,37 +26,24 @@
                 <button class="nav-item" @onclick='() => Nav.NavigateTo("/profile")'>
                     <span class="ni"><i class="bi bi-person-circle"></i></span><span>Profile</span>
                 </button>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="sidebar-user">
-                    <div class="sidebar-avatar" style="font-size:1.3rem;display:flex;align-items:center;justify-content:center">
-                        <i class="bi bi-person-circle" style="color:var(--green)"></i>
-                    </div>
-                    <div>
-                        <div class="sidebar-uname">@(AuthState.CurrentUser?.DisplayName ?? "User")</div>
-                        <div class="sidebar-urole">@AuthState.CurrentUser?.Role</div>
-                    </div>
-                    <button class="sidebar-logout" @onclick="Logout" title="Logout">
-                        <i class="bi bi-box-arrow-right"></i>
-                    </button>
-                </div>
+            </NavGroup>
+        </NavContent>
+    </AppSidebar>
+
+    <div class="main-area">
+        <header class="top-header">
+            <button class="sidebar-toggle" @onclick="Sidebar.ToggleDrawer" title="Menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="header-title"><i class="bi bi-journal-bookmark-fill"></i> My Classes</div>
+            <div class="header-actions" style="margin-left:auto">
+                <button class="header-btn" @onclick="LoadClasses" title="Refresh">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
             </div>
-        </aside>
-    }
+        </header>
 
-    <div class="@(IsDesktop ? "main-area" : "")">
-
-        @if (IsDesktop)
-        {
-            <div class="top-header">
-                <div class="header-title"><i class="bi bi-journal-bookmark-fill"></i> My Classes</div>
-                <div class="header-actions">
-                    <button class="header-btn" @onclick="LoadClasses" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
-                </div>
-            </div>
-        }
-
-        <div class="@(IsDesktop ? "page-content" : "mobile-content")">
+        <div class="page-content">
 
             @if (_loading)
             {
@@ -140,7 +123,7 @@
                                 <div class="msg-row @(mine ? "mine" : "")">
                                     @if (!mine)
                                     {
-                                        <div class="msg-av">@msg.SenderEmoji</div>
+                                        <div class="msg-av"><UserAvatar Name="@msg.SenderName" Size="xs" /></div>
                                     }
                                     <div class="bbl-wrap">
                                         @if (!mine)
@@ -311,234 +294,6 @@
             }
         </div>
 
-        <!-- Mobile bottom nav (child only) -->
-        @if (!IsDesktop)
-        {
-            <nav class="mobile-nav">
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/chat")'><i class="bi bi-chat-fill"></i><span>Chat</span></button>
-                <button class="mnav-item active"><i class="bi bi-journal-bookmark-fill"></i><span>Classes</span></button>
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/notifications")'><i class="bi bi-bell-fill"></i><span>Alerts</span></button>
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/rewards")'><i class="bi bi-trophy-fill"></i><span>Rewards</span></button>
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/profile")'><i class="bi bi-person-circle"></i><span>Profile</span></button>
-            </nav>
-        }
     </div>
 </div>
 
-@code {
-    // ── State ────────────────────────────────────────────────────
-    bool _loading = true;
-    List<ClassItem> _classes = new();
-    ClassDetail? _activeClass;
-    string _tab = "chat";
-    int _unreadCount;
-
-    // Chat
-    List<ClassChatMessage> _classMsgs = new();
-    string _chatInput = "", _chatToast = "", _chatToastClass = "", _typingUser = "";
-    bool _chatSending;
-
-    // Content
-    List<ContentItem> _contentItems = new();
-    bool _contentLoading;
-
-    // Upload (teacher)
-    string _uploadTitle = "", _uploadDesc = "", _uploadType = "Note",
-           _uploadUrl = "", _uploadMsg = "";
-    DateTime? _uploadDue;
-    int _uploadMaxPts = 100;
-    bool _uploading, _uploadOk;
-
-    bool IsDesktop  => AuthState.CurrentUser?.Role is "Teacher" or "Admin" or "Parent";
-    bool IsTeacher  => AuthState.CurrentUser?.Role == "Teacher";
-
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        if (!AuthState.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-
-        Hub.OnClassMessageReceived += OnClassMsg;
-        Hub.OnClassUserTyping      += OnClassTyping;
-        Hub.OnStateChanged         += s => InvokeAsync(StateHasChanged);
-        await Hub.StartAsync(AuthState.CurrentUser!.Token);
-
-        await LoadClasses();
-    }
-
-    async Task LoadClasses()
-    {
-        _loading = true; StateHasChanged();
-        _classes      = await Api.GetAsync<List<ClassItem>>("classes") ?? new();
-        _unreadCount  = (await Api.GetAsync<UnreadCount>("notifications/unread-count"))?.Count ?? 0;
-        _loading = false; StateHasChanged();
-    }
-
-    async Task OpenClass(ClassItem cls)
-    {
-        _activeClass   = await Api.GetAsync<ClassDetail>($"classes/{cls.Id}");
-        _tab           = "chat";
-        _classMsgs     = await Api.GetAsync<List<ClassChatMessage>>(
-                            $"classes/{cls.Id}/messages?take=50") ?? new();
-        await Hub.JoinClassAsync(cls.Id);
-        StateHasChanged();
-    }
-
-    async Task BackToClasses()
-    {
-        if (_activeClass != null) await Hub.LeaveClassAsync(_activeClass.Id);
-        _activeClass = null; StateHasChanged();
-    }
-
-    async Task SetTab(string tab)
-    {
-        _tab = tab;
-        if (tab == "content" && _activeClass != null)
-        {
-            _contentLoading = true; StateHasChanged();
-            _contentItems = await Api.GetAsync<List<ContentItem>>(
-                $"content/class/{_activeClass.Id}") ?? new();
-            _contentLoading = false;
-        }
-        StateHasChanged();
-    }
-
-    // ── Chat ─────────────────────────────────────────────────────
-
-    void OnClassMsg(ClassChatMessage m)
-    {
-        if (_activeClass != null && m.ClassId == _activeClass.Id)
-        {
-            _classMsgs.Add(m);
-            InvokeAsync(StateHasChanged);
-        }
-    }
-
-    void OnClassTyping(int classId, string name)
-    {
-        if (_activeClass?.Id != classId) return;
-        _typingUser = name;
-        InvokeAsync(StateHasChanged);
-        Task.Delay(3000).ContinueWith(_ => { _typingUser = ""; InvokeAsync(StateHasChanged); });
-    }
-
-    async Task OnChatKey(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") { await SendClassMsg(); return; }
-        if (_activeClass != null) await Hub.SendClassTypingAsync(_activeClass.Id);
-    }
-
-    async Task SendClassMsg()
-    {
-        if (string.IsNullOrWhiteSpace(_chatInput) || _chatSending || _activeClass == null) return;
-        _chatSending = true;
-        var text = _chatInput; _chatInput = "";
-
-        // Optimistic local message
-        var local = new ClassChatMessage
-        {
-            ClassId    = _activeClass.Id,
-            SenderId   = AuthState.CurrentUser!.UserId,
-            SenderName = AuthState.CurrentUser.DisplayName,
-            SenderEmoji = AuthState.CurrentUser.AvatarEmoji ?? "😊",
-            Content    = text, Label = "pending"
-        };
-        _classMsgs.Add(local); StateHasChanged();
-
-        var resp = await Api.PostRawAsync<ClassSendResult>(
-            $"messages/class/{_activeClass.Id}/send", new { Content = text });
-
-        _classMsgs.Remove(local);
-        if (resp != null)
-        {
-            local.Label   = resp.Label;
-            local.Content = resp.Label == "Watch" ? "[Message masked]"
-                          : resp.Label == "Review" ? "[Message blocked]"
-                          : text;
-            _classMsgs.Add(local);
-
-            (_chatToast, _chatToastClass) = resp.Label switch
-            {
-                "Safe"   => ("Sent!", "t-safe"),
-                "Watch"  => ("Flagged and masked.", "t-warn"),
-                "Review" => ("Blocked — please be kind!", "t-block"),
-                _        => ("", "")
-            };
-        }
-
-        _chatSending = false; StateHasChanged();
-        await Task.Delay(3000);
-        _chatToast = ""; StateHasChanged();
-    }
-
-    // ── Upload ───────────────────────────────────────────────────
-
-    async Task UploadContent()
-    {
-        if (_activeClass == null || string.IsNullOrWhiteSpace(_uploadTitle)) return;
-        _uploading = true; _uploadMsg = ""; StateHasChanged();
-
-        var ok = await Api.PostAsync("content", new
-        {
-            ClassId     = _activeClass.Id,
-            Title       = _uploadTitle,
-            Description = _uploadDesc,
-            Type        = _uploadType,
-            LinkUrl     = _uploadUrl,
-            DueDate     = _uploadDue,
-            MaxPoints   = _uploadMaxPts
-        });
-
-        _uploadOk  = ok;
-        _uploadMsg = ok ? "Uploaded successfully!" : "Upload failed.";
-        _uploading = false;
-        if (ok) { _uploadTitle = ""; _uploadDesc = ""; _uploadUrl = ""; }
-        StateHasChanged();
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────
-
-    string BubbleClass(ClassChatMessage m) =>
-        m.Label switch { "Watch" => "flagged", "Review" => "blocked", "pending" => "pending", _ => "" };
-
-    static string ContentIcon(string type) => type switch
-    {
-        "PDF"          => "bi-file-pdf-fill",
-        "Assignment"   => "bi-file-text-fill",
-        "Announcement" => "bi-megaphone-fill",
-        "Link"         => "bi-link-45deg",
-        _              => "bi-clipboard2-fill"
-    };
-
-    string GetBaseUrl() => AuthState.BackendUrl ?? "http://localhost:5000";
-
-    async Task Logout() { await AuthState.LogoutAsync(); Nav.NavigateTo("/login"); }
-
-    public async ValueTask DisposeAsync()
-    {
-        Hub.OnClassMessageReceived -= OnClassMsg;
-        Hub.OnClassUserTyping      -= OnClassTyping;
-        if (_activeClass != null) await Hub.LeaveClassAsync(_activeClass.Id);
-    }
-
-    // ── Local models ─────────────────────────────────────────────
-
-    record ClassItem(int Id, string Name, string Section, string Subject,
-                     string? Teacher, int TeacherId, int StudentCount,
-                     int ContentCount, DateTime CreatedAt);
-
-    class ClassDetail
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string Section { get; set; } = "";
-        public string Subject { get; set; } = "";
-        public string? Teacher { get; set; }
-        public int TeacherId { get; set; }
-        public List<StudentItem> Students { get; set; } = new();
-    }
-    record StudentItem(int Id, string DisplayName, string Email);
-    record ContentItem(int Id, string Title, string? Description, string Type,
-                       string? FilePath, DateTime? DueDate, int MaxPoints, DateTime CreatedAt);
-    record ClassSendResult(int Id, string Label, double Score, DateTime Timestamp);
-    record UnreadCount(int Count);
-}

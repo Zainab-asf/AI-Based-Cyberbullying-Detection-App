@@ -1,53 +1,33 @@
 @page "/admin"
 @inject ApiService Api
 @inject AuthStateService AuthState
+@inject SidebarService Sidebar
 @inject NavigationManager Nav
 
 <div class="app-root portal-admin">
 
-    <!-- Sidebar overlay (mobile) -->
-    <div class="sidebar-overlay @(_drawerOpen ? "visible" : "")" @onclick="() => _drawerOpen = false"></div>
-
-    <!-- ── Sidebar ── -->
-    <aside class="sidebar @(_drawerOpen ? "drawer-open" : "")">
-        <div class="sidebar-logo">
-            <i class="bi bi-shield-check-fill ks-logo-icon"></i>
-            <span>KidSafe</span>
-        </div>
-        <nav class="sidebar-nav">
-            <div class="sidebar-section">Management</div>
-            @foreach (var (tab, iconClass, label) in _tabs)
-            {
-                var hasBadge = tab == "Pending" && _pendingUsers.Count > 0;
-                <button class="nav-item @(_activeTab == tab ? "active" : "")"
-                        @onclick="() => SetTab(tab)">
-                    <span class="ni"><i class="bi @iconClass"></i></span>
-                    <span>@label</span>
-                    @if (hasBadge) { <span class="nb">@_pendingUsers.Count</span> }
-                </button>
-            }
-        </nav>
-        <div class="sidebar-footer">
-            <div class="sidebar-user">
-                <div class="sidebar-avatar" style="font-size:1.3rem;display:flex;align-items:center;justify-content:center">
-                    <i class="bi bi-shield-fill" style="color:var(--green)"></i>
-                </div>
-                <div>
-                    <div class="sidebar-uname">@(AuthState.CurrentUser?.DisplayName ?? "Admin")</div>
-                    <div class="sidebar-urole">Administrator</div>
-                </div>
-                <button class="sidebar-logout" @onclick="Logout" title="Logout">
-                    <i class="bi bi-box-arrow-right"></i>
-                </button>
-            </div>
-        </div>
-    </aside>
+    <AppSidebar>
+        <NavContent>
+            <NavGroup Title="Management">
+                @foreach (var (tab, iconClass, label) in _tabs)
+                {
+                    var hasBadge = tab == "Pending" && _pendingUsers.Count > 0;
+                    <button class="nav-item @(_activeTab == tab ? "active" : "")"
+                            @onclick="() => SetTab(tab)">
+                        <span class="ni"><i class="bi @iconClass"></i></span>
+                        <span>@label</span>
+                        @if (hasBadge) { <span class="nb">@_pendingUsers.Count</span> }
+                    </button>
+                }
+            </NavGroup>
+        </NavContent>
+    </AppSidebar>
 
     <!-- ── Main area ── -->
     <div class="main-area">
         <!-- Top header -->
         <header class="top-header">
-            <button class="sidebar-toggle" @onclick="() => _drawerOpen = !_drawerOpen" title="Menu">
+            <button class="sidebar-toggle" @onclick="Sidebar.ToggleDrawer" title="Menu">
                 <i class="bi bi-list"></i>
             </button>
             <div class="header-search">
@@ -59,11 +39,9 @@
                     <i class="bi bi-arrow-clockwise"></i>
                 </button>
                 <div class="header-profile">
-                    <div class="hp-avatar" style="font-size:1.2rem;display:flex;align-items:center;justify-content:center">
-                        <i class="bi bi-shield-fill" style="color:var(--green)"></i>
-                    </div>
+                    <UserAvatar Name="@(AuthState.CurrentUser?.DisplayName ?? "Admin")" Size="sm" Role="admin" />
                     <div>
-                        <div class="hp-name">Admin</div>
+                        <div class="hp-name">@(AuthState.CurrentUser?.DisplayName ?? "Admin")</div>
                         <div class="hp-role">KidSafe</div>
                     </div>
                 </div>
@@ -74,20 +52,15 @@
         <div class="page-content">
 
             <!-- Profile card -->
-            <div class="dash-profile-card" style="margin-bottom:1.25rem">
-                <div class="dpc-avatar" style="font-size:2rem;display:flex;align-items:center;justify-content:center">
-                    <i class="bi bi-shield-fill" style="color:var(--green)"></i>
-                </div>
-                <div class="dpc-info">
-                    <div class="dpc-name">@(AuthState.CurrentUser?.DisplayName ?? "Administrator")</div>
-                    <div class="dpc-role">System Administrator</div>
-                    <div class="dpc-meta">@_allUsers.Count users · @_classes.Count classes · @_parentLinks.Count parent links</div>
-                </div>
-                <div class="dpc-actions">
+            <DashboardProfileCard RoleKey="admin"
+                Name="@(AuthState.CurrentUser?.DisplayName ?? "Administrator")"
+                Role="System Administrator"
+                Meta="@($"{_allUsers.Count} users · {_classes.Count} classes · {_parentLinks.Count} parent links")">
+                <Actions>
                     <button class="btn btn-sm btn-outline" @onclick='() => Nav.NavigateTo("/profile")'><i class="bi bi-person-circle"></i> Profile</button>
                     <button class="btn btn-sm btn-outline" @onclick='() => SetTab("Classes")'><i class="bi bi-journal-bookmark-fill"></i> Classes</button>
-                </div>
-            </div>
+                </Actions>
+            </DashboardProfileCard>
 
             <!-- Page heading -->
             <div class="page-head">
@@ -99,34 +72,10 @@
             @if (_stats != null)
             {
                 <div class="grid-4" style="margin-bottom:1.5rem">
-                    <div class="stat-card">
-                        <div class="stat-icon green"><i class="bi bi-people-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val">@_allUsers.Count</div>
-                            <div class="stat-label">Total Users</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon gold"><i class="bi bi-hourglass-split"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--warning)">@_stats.PendingTeachers</div>
-                            <div class="stat-label">Pending</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon coral"><i class="bi bi-slash-circle-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--danger)">@_stats.TotalReview</div>
-                            <div class="stat-label">Blocked</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon purple"><i class="bi bi-clipboard2-fill"></i></div>
-                        <div class="stat-body">
-                            <div class="stat-val" style="color:var(--purple)">@_stats.TotalComplaints</div>
-                            <div class="stat-label">Complaints</div>
-                        </div>
-                    </div>
+                    <StatCard IconClass="bi-people-fill"      Value="@_allUsers.Count.ToString()"       Label="Total Users" Color="green"  />
+                    <StatCard IconClass="bi-hourglass-split"  Value="@_stats.PendingTeachers.ToString()" Label="Pending"     Color="gold"   />
+                    <StatCard IconClass="bi-slash-circle-fill" Value="@_stats.TotalReview.ToString()"   Label="Blocked"     Color="coral"  />
+                    <StatCard IconClass="bi-clipboard2-fill"  Value="@_stats.TotalComplaints.ToString()" Label="Complaints"  Color="purple" />
                 </div>
             }
 
@@ -154,7 +103,7 @@
                 @if (!_pendingUsers.Any())
                 {
                     <div class="empty-block">
-                        <div class="empty-ico">✅</div>
+                        <div class="empty-ico"><i class="bi bi-check-circle-fill" style="color:var(--green)"></i></div>
                         <div class="empty-txt">No pending approvals</div>
                         <div class="empty-sub">All accounts are reviewed</div>
                     </div>
@@ -185,7 +134,21 @@
                     <h2><i class="bi bi-person-fill"></i> Students</h2>
                     <button class="btn btn-sm btn-primary" @onclick="OpenCreateChild">+ Add Student</button>
                 </div>
-                @foreach (var u in _allUsers.Where(u => u.Role == "Child")) { @UserRow(u) }
+                @foreach (var u in _allUsers.Where(u => u.Role == "Child"))
+                {
+                    <div class="user-row">
+                        <div class="user-av" style="font-size:1.2rem;display:flex;align-items:center;justify-content:center"><i class="bi @RoleIconClass(u.Role)"></i></div>
+                        <div class="user-info">
+                            <div class="user-name">@u.DisplayName</div>
+                            <div class="user-email">@u.Email</div>
+                        </div>
+                        <div class="user-acts">
+                            <span class="badge @(u.Status == "active" ? "badge-green" : u.Status == "pending" ? "badge-gold" : "badge-red")">@u.Status</span>
+                            @if (u.Status != "active") { <button class="btn btn-sm btn-ghost" @onclick="() => Approve(u.Id)" title="Approve"><i class="bi bi-check-circle-fill"></i></button> }
+                            @if (u.Status != "disabled") { <button class="btn btn-sm btn-danger-o" @onclick="() => Disable(u.Id)" title="Disable"><i class="bi bi-slash-circle-fill"></i></button> }
+                        </div>
+                    </div>
+                }
                 @if (!_allUsers.Any(u => u.Role == "Child"))
                 {
                     <div class="empty-block">
@@ -202,7 +165,21 @@
                     <h2><i class="bi bi-mortarboard-fill"></i> Teachers</h2>
                     <button class="btn btn-sm btn-primary" @onclick="OpenCreateTeacher">+ Add Teacher</button>
                 </div>
-                @foreach (var u in _allUsers.Where(u => u.Role == "Teacher")) { @UserRow(u) }
+                @foreach (var u in _allUsers.Where(u => u.Role == "Teacher"))
+                {
+                    <div class="user-row">
+                        <div class="user-av" style="font-size:1.2rem;display:flex;align-items:center;justify-content:center"><i class="bi @RoleIconClass(u.Role)"></i></div>
+                        <div class="user-info">
+                            <div class="user-name">@u.DisplayName</div>
+                            <div class="user-email">@u.Email</div>
+                        </div>
+                        <div class="user-acts">
+                            <span class="badge @(u.Status == "active" ? "badge-green" : u.Status == "pending" ? "badge-gold" : "badge-red")">@u.Status</span>
+                            @if (u.Status != "active") { <button class="btn btn-sm btn-ghost" @onclick="() => Approve(u.Id)" title="Approve"><i class="bi bi-check-circle-fill"></i></button> }
+                            @if (u.Status != "disabled") { <button class="btn btn-sm btn-danger-o" @onclick="() => Disable(u.Id)" title="Disable"><i class="bi bi-slash-circle-fill"></i></button> }
+                        </div>
+                    </div>
+                }
                 @if (!_allUsers.Any(u => u.Role == "Teacher"))
                 {
                     <div class="empty-block">
@@ -219,7 +196,21 @@
                     <h2><i class="bi bi-people-fill"></i> Parents</h2>
                     <button class="btn btn-sm btn-primary" @onclick="OpenCreateParent">+ Add Parent</button>
                 </div>
-                @foreach (var u in _allUsers.Where(u => u.Role == "Parent")) { @UserRow(u) }
+                @foreach (var u in _allUsers.Where(u => u.Role == "Parent"))
+                {
+                    <div class="user-row">
+                        <div class="user-av" style="font-size:1.2rem;display:flex;align-items:center;justify-content:center"><i class="bi @RoleIconClass(u.Role)"></i></div>
+                        <div class="user-info">
+                            <div class="user-name">@u.DisplayName</div>
+                            <div class="user-email">@u.Email</div>
+                        </div>
+                        <div class="user-acts">
+                            <span class="badge @(u.Status == "active" ? "badge-green" : u.Status == "pending" ? "badge-gold" : "badge-red")">@u.Status</span>
+                            @if (u.Status != "active") { <button class="btn btn-sm btn-ghost" @onclick="() => Approve(u.Id)" title="Approve"><i class="bi bi-check-circle-fill"></i></button> }
+                            @if (u.Status != "disabled") { <button class="btn btn-sm btn-danger-o" @onclick="() => Disable(u.Id)" title="Disable"><i class="bi bi-slash-circle-fill"></i></button> }
+                        </div>
+                    </div>
+                }
                 @if (!_allUsers.Any(u => u.Role == "Parent"))
                 {
                     <div class="empty-block">
@@ -739,302 +730,3 @@
     </div>
 }
 
-@code {
-    record UserDto(int Id, string DisplayName, string Email, string Role, string Status);
-    record ComplaintDto(int Id, string Description, string Status, DateTime Timestamp);
-    record ClassDto(int Id, string Name, string Section, string Subject, string? Teacher, int TeacherId, int StudentCount);
-    record ClassDetail(int Id, string Name);
-    record ParentLinkDto(int ParentId, string ParentName, string ParentEmail,
-                         int ChildId,  string ChildName,  string ChildEmail, DateTime LinkedAt);
-
-    DashboardStats?          _stats;
-    List<UserDto>            _allUsers        = new();
-    List<UserDto>            _pendingUsers    = new();
-    List<FlaggedMessageItem> _flaggedMessages = new();
-    List<ComplaintDto>       _complaints      = new();
-    List<ClassDto>           _classes         = new();
-    List<ParentLinkDto>      _parentLinks     = new();
-    bool   _loading = true;
-    bool   _drawerOpen;
-    string _activeTab = "Pending";
-    string _toast = "";
-
-    static readonly (string tab, string icon, string label)[] _tabs = {
-        ("Pending","bi-hourglass-split","Pending"),
-        ("Students","bi-person-fill","Students"),
-        ("Teachers","bi-mortarboard-fill","Teachers"),
-        ("Parents","bi-people-fill","Parents"),
-        ("Flagged","bi-exclamation-triangle-fill","Flagged"),
-        ("Complaints","bi-clipboard2-fill","Complaints"),
-        ("Classes","bi-journal-bookmark-fill","Classes"),
-        ("Links","bi-link-45deg","Links")
-    };
-
-    // Create user modal (Parent / Teacher only)
-    bool   _showCreate, _createBusy, _createDone;
-    string _createRole = "Parent", _createName = "", _createEmail = "", _createPassword = "", _createError = "";
-
-    static readonly (string role, string icon, string label)[] _roles = {
-        ("Parent","bi-people-fill","Parent"), ("Teacher","bi-mortarboard-fill","Teacher")
-    };
-
-    // Student creation modal (atomic: student + class + parent)
-    bool   _showCreateStudent, _stuBusy, _stuDone;
-    string _stuName = "", _stuEmail = "", _stuPassword = "", _stuRoll = "", _stuError = "";
-    string _stuParentMode = "existing";   // "existing" | "new"
-    int    _stuClassId, _stuExistingParentId;
-    string _stuParentName = "", _stuParentEmail = "", _stuParentPassword = "";
-
-    // Create class modal
-    bool   _showCreateClass, _clsBusy, _clsOk;
-    string _clsName = "", _clsSection = "", _clsSubject = "", _clsMsg = "";
-    int    _clsTeacherId;
-
-    // Manage class
-    ClassDto? _manageClass;
-    int       _addStudentId;
-    string    _classMsg = "";
-
-    // Parent-child link modal
-    bool   _showLinkModal, _linkBusy, _linkOk;
-    int    _linkParentId, _linkChildId;
-    string _linkMsg = "";
-
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        if (!AuthState.IsAuthenticated || !AuthState.IsAdmin) { Nav.NavigateTo("/login"); return; }
-        await LoadData();
-    }
-
-    async Task LoadData()
-    {
-        _loading = true; StateHasChanged();
-        _stats           = await Api.GetDashboardStatsAsync();
-        _allUsers        = await Api.GetAsync<List<UserDto>>("admin/users") ?? new();
-        _pendingUsers    = await Api.GetAsync<List<UserDto>>("admin/users/pending") ?? new();
-        _flaggedMessages = await Api.GetFlaggedMessagesAsync();
-        _complaints      = await Api.GetAsync<List<ComplaintDto>>("reports/complaint") ?? new();
-        _classes         = await Api.GetAsync<List<ClassDto>>("classes") ?? new();
-        _parentLinks     = await Api.GetAsync<List<ParentLinkDto>>("admin/parent-links") ?? new();
-        _loading = false; StateHasChanged();
-    }
-
-    async Task SetTab(string tab)
-    {
-        _activeTab = tab;
-        if (_allUsers.Count == 0) await LoadData();
-        else StateHasChanged();
-    }
-
-    // ── Class management ──────────────────────────────────────
-
-    void OpenCreateClass() { _clsName = _clsSection = _clsSubject = _clsMsg = ""; _clsTeacherId = 0; _showCreateClass = true; }
-
-    async Task CreateClass()
-    {
-        if (string.IsNullOrWhiteSpace(_clsName)) { _clsMsg = "Name required."; _clsOk = false; return; }
-        _clsBusy = true; StateHasChanged();
-        var ok = await Api.PostAsync("classes", new
-        {
-            Name      = _clsName,
-            Section   = _clsSection,
-            Subject   = _clsSubject,
-            TeacherId = _clsTeacherId == 0 ? (int?)null : _clsTeacherId
-        });
-        _clsBusy = false;
-        _clsOk   = ok;
-        _clsMsg  = ok ? "✅ Class created!" : "❌ Failed to create class.";
-        if (ok) { await LoadData(); await Task.Delay(1500); _showCreateClass = false; }
-        StateHasChanged();
-    }
-
-    async Task DeleteClass(int id)
-    {
-        if (await Api.DeleteAsync($"classes/{id}")) { _toast = "🗑 Class deleted."; await LoadData(); ShowToast(); }
-    }
-
-    void ManageClass(ClassDto cl) { _manageClass = cl; _addStudentId = 0; _classMsg = ""; }
-
-    async Task AddStudentToClass()
-    {
-        if (_manageClass == null || _addStudentId == 0) return;
-        var ok = await Api.PostAsync($"classes/{_manageClass.Id}/students", new { StudentId = _addStudentId });
-        _classMsg = ok ? "✅ Student added!" : "❌ Already enrolled or failed.";
-        if (ok) await LoadData();
-        StateHasChanged();
-    }
-
-    // ── Parent-child links ────────────────────────────────────
-
-    async Task LinkParentChild()
-    {
-        if (_linkParentId == 0 || _linkChildId == 0) { _linkMsg = "Select both users."; _linkOk = false; return; }
-        _linkBusy = true; StateHasChanged();
-        var ok = await Api.PostAsync("admin/parent-links", new { ParentId = _linkParentId, ChildId = _linkChildId });
-        _linkBusy = false;
-        _linkOk   = ok;
-        _linkMsg  = ok ? "✅ Linked!" : "❌ Already linked or invalid.";
-        if (ok) { await LoadData(); await Task.Delay(1500); _showLinkModal = false; }
-        StateHasChanged();
-    }
-
-    async Task UnlinkParentChild(int parentId, int childId)
-    {
-        if (await Api.DeleteAsync($"admin/parent-links/{parentId}/{childId}"))
-        { _toast = "🔗 Link removed."; await LoadData(); ShowToast(); }
-    }
-
-    async Task Approve(int id)
-    {
-        if (await Api.PostAsync($"admin/users/{id}/approve", new { }))
-        { _toast = "✅ Account approved"; await LoadData(); }
-        ShowToast();
-    }
-
-    async Task Disable(int id)
-    {
-        if (await Api.PostAsync($"admin/users/{id}/disable", new { }))
-        { _toast = "🚫 Account disabled"; await LoadData(); }
-        ShowToast();
-    }
-
-    async Task UpdateComplaint(int id, string status)
-    {
-        await Api.PatchAsync($"reports/complaint/{id}", new { Status = status });
-        _toast = status == "resolved" ? "✅ Resolved" : "📋 Marked under review";
-        await LoadData();
-        ShowToast();
-    }
-
-    void OpenCreate(string role)  { _createRole = role; _createError = ""; _createDone = false; _showCreate = true; }
-    void OpenCreateTeacher() => OpenCreate("Teacher");
-    void OpenCreateParent()  => OpenCreate("Parent");
-    void CloseCreate()       { _showCreate = false; _createName = _createEmail = _createPassword = ""; _createError = ""; _createDone = false; }
-
-    void OpenCreateChild()
-    {
-        _stuName = _stuEmail = _stuPassword = _stuRoll = _stuError = "";
-        _stuParentName = _stuParentEmail = _stuParentPassword = "";
-        _stuParentMode = "existing";
-        _stuClassId = _stuExistingParentId = 0;
-        _stuDone = false;
-        _showCreateStudent = true;
-    }
-
-    void CloseCreateStudent()
-    {
-        _showCreateStudent = false;
-        _stuName = _stuEmail = _stuPassword = _stuRoll = _stuError = "";
-        _stuParentName = _stuParentEmail = _stuParentPassword = "";
-        _stuDone = false;
-    }
-
-    async Task CreateStudent()
-    {
-        if (string.IsNullOrWhiteSpace(_stuName))     { _stuError = "Student name is required."; return; }
-        if (string.IsNullOrWhiteSpace(_stuEmail))    { _stuError = "Student email is required."; return; }
-        if (string.IsNullOrWhiteSpace(_stuPassword)) { _stuError = "Password is required (min 6 chars)."; return; }
-        if (string.IsNullOrWhiteSpace(_stuRoll))     { _stuError = "Roll number is required."; return; }
-        if (_stuClassId == 0)                        { _stuError = "Please select a class."; return; }
-
-        if (_stuParentMode == "existing" && _stuExistingParentId == 0)
-            { _stuError = "Please select an existing parent account."; return; }
-        if (_stuParentMode == "new")
-        {
-            if (string.IsNullOrWhiteSpace(_stuParentName))     { _stuError = "Parent name is required."; return; }
-            if (string.IsNullOrWhiteSpace(_stuParentEmail))    { _stuError = "Parent email is required."; return; }
-            if (string.IsNullOrWhiteSpace(_stuParentPassword)) { _stuError = "Parent password is required."; return; }
-        }
-
-        _stuBusy = true; _stuError = ""; StateHasChanged();
-
-        var payload = new
-        {
-            Name               = _stuName.Trim(),
-            Email              = _stuEmail.Trim(),
-            Password           = _stuPassword,
-            RollNumber         = _stuRoll.Trim(),
-            ClassId            = _stuClassId,
-            ExistingParentId   = _stuParentMode == "existing" ? _stuExistingParentId : (int?)null,
-            ParentName         = _stuParentMode == "new" ? _stuParentName.Trim()     : (string?)null,
-            ParentEmail        = _stuParentMode == "new" ? _stuParentEmail.Trim()    : (string?)null,
-            ParentPassword     = _stuParentMode == "new" ? _stuParentPassword        : (string?)null,
-        };
-
-        var (ok, error) = await Api.PostWithErrorAsync("admin/students", payload);
-        _stuBusy = false;
-
-        if (!ok) { _stuError = string.IsNullOrEmpty(error) ? "Failed to create student." : error; StateHasChanged(); return; }
-
-        _stuDone = true;
-        await LoadData();
-        await Task.Delay(2000);
-        CloseCreateStudent();
-    }
-
-    Task MarkUnderReview(int id) => UpdateComplaint(id, "underReview");
-    Task MarkResolved(int id)    => UpdateComplaint(id, "resolved");
-
-    async Task CreateUser()
-    {
-        if (string.IsNullOrWhiteSpace(_createEmail) || string.IsNullOrWhiteSpace(_createPassword) || string.IsNullOrWhiteSpace(_createName))
-        { _createError = "All fields are required."; return; }
-
-        _createBusy = true; _createError = "";
-        var ok = await Api.PostAsync("admin/users", new
-        {
-            Email       = _createEmail.Trim(),
-            Password    = _createPassword,
-            DisplayName = _createName.Trim(),
-            Role        = _createRole
-        });
-        _createBusy = false;
-
-        if (!ok) { _createError = "Failed. Email may already be taken."; return; }
-
-        _createDone = true;
-        _createName = _createEmail = _createPassword = "";
-        await LoadData();
-        await Task.Delay(2000);
-        CloseCreate();
-    }
-
-    void ShowToast() { StateHasChanged(); Task.Delay(3000).ContinueWith(_ => { _toast = ""; InvokeAsync(StateHasChanged); }); }
-
-    static string RoleIconClass(string role) => role switch
-    {
-        "Child"   => "bi-person-fill",
-        "Parent"  => "bi-people-fill",
-        "Teacher" => "bi-mortarboard-fill",
-        "Admin"   => "bi-shield-fill",
-        _         => "bi-person-circle"
-    };
-    static string StatusBadge(string s)  => s switch { "resolved" => "badge-green", "underReview" => "badge-gold", _ => "badge-blue" };
-
-    RenderFragment UserRow(UserDto u) => __builder =>
-    {
-        <div class="user-row">
-            <div class="user-av" style="font-size:1.2rem;display:flex;align-items:center;justify-content:center"><i class="bi @RoleIconClass(u.Role)"></i></div>
-            <div class="user-info">
-                <div class="user-name">@u.DisplayName</div>
-                <div class="user-email">@u.Email</div>
-            </div>
-            <div class="user-acts">
-                <span class="badge @(u.Status == "active" ? "badge-green" : u.Status == "pending" ? "badge-gold" : "badge-red")">
-                    @u.Status
-                </span>
-                @if (u.Status != "active")
-                {
-                    <button class="btn btn-sm btn-ghost" @onclick="() => Approve(u.Id)">✅</button>
-                }
-                @if (u.Status != "disabled")
-                {
-                    <button class="btn btn-sm btn-danger-o" @onclick="() => Disable(u.Id)">🚫</button>
-                }
-            </div>
-        </div>;
-    };
-
-    async Task Logout() { await AuthState.LogoutAsync(); Nav.NavigateTo("/login"); }
-}

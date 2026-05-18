@@ -1,0 +1,20 @@
+@code {
+    [Parameter] public string Title   { get; set; } = "";
+    [Parameter] public bool   Expanded { get; set; } = true;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    bool _open;
+
+    protected override void OnInitialized() => _open = Expanded;
+    void Toggle() => _open = !_open;
+}
+
+<div class="nav-group">
+    <button class="nav-group-hdr" @onclick="Toggle" title="@Title">
+        <span class="nav-group-title">@Title</span>
+        <i class="bi bi-chevron-right nav-chevron @(_open ? "open" : "")"></i>
+    </button>
+    <div class="nav-group-body @(_open ? "open" : "")">
+        @ChildContent
+    </div>
+</div>

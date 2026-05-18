@@ -53,6 +53,8 @@ builder.Services.AddHttpClient<IAIService, AIService>(client =>
                                  ?? "http://localhost:8000");
     client.Timeout = TimeSpan.FromSeconds(15);
 });
+// Named client for health check (no base address — full URL used in controller)
+builder.Services.AddHttpClient("ai-health");
 
 // ── App services ──────────────────────────────────────────────────────────────
 builder.Services.AddSingleton<INotificationService, NotificationService>();
@@ -81,7 +83,39 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();   // creates DB if absent, applies pending migrations
+    await db.Database.MigrateAsync();
+
+    // Repair: migration 20260513173440_AddRollNumberAndProfile had an empty Up() body.
+    // These columns exist in the EF model but were never added to the DB.
+    // IF NOT EXISTS makes this a safe no-op after first run.
+    await db.Database.ExecuteSqlRawAsync(@"
+        IF NOT EXISTS (SELECT 1 FROM sys.columns
+                       WHERE object_id = OBJECT_ID(N'[Users]') AND name = N'Phone')
+            ALTER TABLE [Users] ADD [Phone] nvarchar(20) NULL;
+
+        IF NOT EXISTS (SELECT 1 FROM sys.columns
+                       WHERE object_id = OBJECT_ID(N'[Users]') AND name = N'RollNumber')
+            ALTER TABLE [Users] ADD [RollNumber] nvarchar(50) NULL;
+    ");
+
+    // Repair: ensure DirectMessages table exists (safety net if migration body was empty)
+    await db.Database.ExecuteSqlRawAsync(@"
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = N'DirectMessages')
+        CREATE TABLE [DirectMessages] (
+            [Id]         INT IDENTITY(1,1) NOT NULL,
+            [SenderId]   INT NOT NULL,
+            [ReceiverId] INT NOT NULL,
+            [Content]    NVARCHAR(MAX) NOT NULL DEFAULT '',
+            [Label]      NVARCHAR(20)  NOT NULL DEFAULT 'Safe',
+            [Score]      FLOAT NOT NULL DEFAULT 0,
+            [Masked]     NVARCHAR(MAX) NULL,
+            [Timestamp]  DATETIME2    NOT NULL DEFAULT GETUTCDATE(),
+            CONSTRAINT PK_DirectMessages PRIMARY KEY ([Id]),
+            CONSTRAINT FK_DM_Sender   FOREIGN KEY ([SenderId])   REFERENCES [Users]([Id]),
+            CONSTRAINT FK_DM_Receiver FOREIGN KEY ([ReceiverId]) REFERENCES [Users]([Id])
+        );
+    ");
+
     await SeedAdminAsync(db, app.Configuration);
     await SeedDemoDataAsync(db);
 }

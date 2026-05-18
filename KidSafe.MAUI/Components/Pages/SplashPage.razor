@@ -2,29 +2,83 @@
 @page "/splash"
 @inject NavigationManager Nav
 @inject AuthStateService AuthState
+@inject ApiService Api
 
 <div class="splash-root">
-    <div class="splash-card">
-        <i class="bi bi-shield-check-fill ks-logo-lg"></i>
-        <div class="splash-brand">KidSafe</div>
-        <div class="splash-tag">Safe Chat for Young Minds</div>
-        <div class="splash-dots">
-            <span></span><span></span><span></span>
+
+    @if (_phase == SplashPhase.Loading)
+    {
+        <!-- Initial brand splash -->
+        <div class="splash-card">
+            <img src="img/mascot-buddy.jpeg" class="mascot-hero" alt="KidSafe Buddy" />
+            <div class="splash-brand">KidSafe</div>
+            <div class="splash-tag">Safe Chat for Young Minds</div>
+            <div class="splash-dots">
+                <span></span><span></span><span></span>
+            </div>
         </div>
-    </div>
+    }
+    else if (_phase == SplashPhase.Connecting)
+    {
+        <!-- Connecting to server -->
+        <div class="splash-card">
+            <img src="img/mascot-buddy.jpeg" class="mascot-hero" alt="KidSafe Buddy" />
+            <div class="splash-brand">KidSafe</div>
+            <div class="sp-status-row">
+                <div class="sp-spin-ring"></div>
+                <span class="sp-status-txt">Connecting to server…</span>
+            </div>
+            <div class="sp-url-chip">@_serverUrl</div>
+        </div>
+    }
+    else if (_phase == SplashPhase.Offline)
+    {
+        <!-- Server offline / unreachable -->
+        <div class="splash-card sp-offline-card">
+            <img src="img/mascot-buddy.jpeg" class="mascot-hero sp-mascot-offline" alt="KidSafe Buddy" />
+            <div class="splash-brand">KidSafe</div>
+            <div class="sp-offline-msg">
+                <i class="bi bi-exclamation-triangle-fill" style="color:#FFCF44"></i>
+                Cannot reach the server
+            </div>
+            <div class="sp-offline-hint">
+                Make sure the KidSafe API is running at:
+            </div>
+
+            <!-- Editable server URL -->
+            <div class="sp-url-edit">
+                <input class="sp-url-input"
+                       @bind="_serverUrlInput"
+                       @bind:event="oninput"
+                       placeholder="http://localhost:5000" />
+            </div>
+
+            <div class="sp-offline-actions">
+                <button class="sp-retry-btn" @onclick="RetryAsync" disabled="@_retrying">
+                    @if (_retrying)
+                    {
+                        <div class="sp-spin-ring sp-spin-sm"></div>
+                        <span>Retrying…</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Retry Connection</span>
+                    }
+                </button>
+                <button class="sp-skip-btn" @onclick="SkipToLogin">
+                    <i class="bi bi-box-arrow-in-right"></i> Continue Offline
+                </button>
+            </div>
+        </div>
+    }
+
 </div>
 
 @code {
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        await Task.Delay(1800);
-        Nav.NavigateTo(!AuthState.IsAuthenticated ? "/login" :
-            AuthState.CurrentUser?.Role switch {
-                "Admin"   => "/admin",
-                "Child"   => "/child-home",
-                "Teacher" => "/teacher",
-                _         => "/dashboard"
-            });
-    }
+    enum SplashPhase { Loading, Connecting, Offline }
+    SplashPhase _phase = SplashPhase.Loading;
+    string _serverUrl      = "http://localhost:5000";
+    string _serverUrlInput = "http://localhost:5000";
+    bool   _retrying;
 }

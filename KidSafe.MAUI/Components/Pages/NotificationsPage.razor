@@ -1,84 +1,54 @@
 @page "/notifications"
 @inject ApiService Api
 @inject AuthStateService AuthState
+@inject SidebarService Sidebar
 @inject NavigationManager Nav
 
-<div class="@(IsDesktop ? "app-root" : "mobile-root")">
+<div class="app-root">
 
-    @if (IsDesktop)
-    {
-        <aside class="sidebar">
-            <div class="sidebar-logo">
-                <i class="bi bi-shield-check-fill ks-logo-icon"></i>
-                <span>KidSafe</span>
-            </div>
-            <nav class="sidebar-nav">
-                <div class="sidebar-section">Navigation</div>
+    <AppSidebar>
+        <NavContent>
+            <NavGroup Title="Navigation">
                 <button class="nav-item" @onclick="GoBack">
                     <span class="ni"><i class="bi bi-arrow-left"></i></span><span>Back</span>
                 </button>
                 <button class="nav-item active">
                     <span class="ni"><i class="bi bi-bell-fill"></i></span><span>Notifications</span>
                 </button>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="sidebar-user">
-                    <div class="sidebar-avatar" style="font-size:1.3rem;display:flex;align-items:center;justify-content:center">
-                        <i class="bi bi-person-circle" style="color:var(--green)"></i>
-                    </div>
-                    <div>
-                        <div class="sidebar-uname">@(AuthState.CurrentUser?.DisplayName ?? "User")</div>
-                        <div class="sidebar-urole">@AuthState.CurrentUser?.Role</div>
-                    </div>
-                    <button class="sidebar-logout" @onclick="Logout" title="Logout">
-                        <i class="bi bi-box-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-        </aside>
-    }
+            </NavGroup>
+        </NavContent>
+    </AppSidebar>
 
-    <div class="@(IsDesktop ? "main-area" : "")">
-        @if (IsDesktop)
-        {
-            <div class="top-header">
-                <div class="header-title"><i class="bi bi-bell-fill"></i> Notifications</div>
-                <div class="header-actions">
-                    @if (_notifications.Any(n => !n.IsRead))
-                    {
-                        <button class="btn-sm btn-outline" @onclick="MarkAllRead">Mark all read</button>
-                    }
-                    <button class="header-btn" @onclick="Load" title="Refresh">
-                        <i class="bi bi-arrow-clockwise"></i>
-                    </button>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="mobile-header">
-                <div class="mh-title"><i class="bi bi-bell-fill"></i> Notifications</div>
+    <div class="main-area">
+        <header class="top-header">
+            <button class="sidebar-toggle" @onclick="Sidebar.ToggleDrawer" title="Menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="header-title"><i class="bi bi-bell-fill"></i> Notifications</div>
+            <div class="header-actions" style="margin-left:auto">
                 @if (_notifications.Any(n => !n.IsRead))
                 {
-                    <button class="btn-sm btn-outline" @onclick="MarkAllRead">Mark all read</button>
+                    <button class="btn btn-sm btn-outline" @onclick="MarkAllRead">Mark all read</button>
                 }
+                <button class="header-btn" @onclick="Load" title="Refresh">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
             </div>
-        }
+        </header>
 
-        <div class="@(IsDesktop ? "page-content" : "mobile-content")">
+        <div class="page-content">
             @if (_loading)
             {
                 <div class="loading-block">
-                    <div class="spin-ring"></div>
-                    <div>Loading…</div>
+                    <div class="spinner"></div>
                 </div>
             }
             else if (!_notifications.Any())
             {
                 <div class="empty-block">
-                    <div><i class="bi bi-bell-fill" style="font-size:3rem;color:var(--text-m)"></i></div>
-                    <div>No notifications</div>
-                    <div style="font-size:.83rem;color:var(--text-m)">You're all caught up!</div>
+                    <div class="empty-ico"><i class="bi bi-bell-fill" style="color:var(--text-m)"></i></div>
+                    <div class="empty-txt">No notifications</div>
+                    <div class="empty-sub">You're all caught up!</div>
                 </div>
             }
             else
@@ -100,90 +70,6 @@
                 }
             }
         </div>
-
-        @if (!IsDesktop)
-        {
-            <nav class="mobile-nav">
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/chat")'><i class="bi bi-chat-fill"></i><span>Chat</span></button>
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/classes")'><i class="bi bi-journal-bookmark-fill"></i><span>Classes</span></button>
-                <button class="mnav-item active"><i class="bi bi-bell-fill"></i><span>Alerts</span></button>
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/rewards")'><i class="bi bi-trophy-fill"></i><span>Rewards</span></button>
-                <button class="mnav-item" @onclick='() => Nav.NavigateTo("/profile")'><i class="bi bi-person-circle"></i><span>Profile</span></button>
-            </nav>
-        }
     </div>
 </div>
 
-@code {
-    List<NoteItem> _notifications = new();
-    bool _loading = true;
-    bool IsDesktop => AuthState.CurrentUser?.Role is "Teacher" or "Admin" or "Parent";
-
-    protected override async Task OnInitializedAsync()
-    {
-        await AuthState.InitAsync();
-        if (!AuthState.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        await Load();
-    }
-
-    async Task Load()
-    {
-        _loading = true; StateHasChanged();
-        _notifications = await Api.GetAsync<List<NoteItem>>("notifications") ?? new();
-        _loading = false; StateHasChanged();
-    }
-
-    async Task ReadNote(NoteItem n)
-    {
-        if (!n.IsRead)
-        {
-            n.IsRead = true;
-            await Api.PostAsync($"notifications/{n.Id}/read", new { });
-            StateHasChanged();
-        }
-    }
-
-    async Task MarkAllRead()
-    {
-        await Api.PostAsync("notifications/read-all", new { });
-        foreach (var n in _notifications) n.IsRead = true;
-        StateHasChanged();
-    }
-
-    static string NoteIcon(string type) => type switch
-    {
-        "alert"      => "bi-exclamation-triangle-fill",
-        "assignment" => "bi-file-text-fill",
-        "badge"      => "bi-trophy-fill",
-        _            => "bi-info-circle-fill"
-    };
-
-    static string TimeAgo(DateTime dt)
-    {
-        var diff = DateTime.UtcNow - dt;
-        if (diff.TotalMinutes < 1)  return "just now";
-        if (diff.TotalHours   < 1)  return $"{(int)diff.TotalMinutes}m ago";
-        if (diff.TotalDays    < 1)  return $"{(int)diff.TotalHours}h ago";
-        return $"{(int)diff.TotalDays}d ago";
-    }
-
-    void GoBack() => Nav.NavigateTo(AuthState.CurrentUser?.Role switch
-    {
-        "Admin"   => "/admin",
-        "Teacher" => "/teacher",
-        "Parent"  => "/dashboard",
-        _         => "/child-home"
-    });
-
-    async Task Logout() { await AuthState.LogoutAsync(); Nav.NavigateTo("/login"); }
-
-    class NoteItem
-    {
-        public int      Id        { get; set; }
-        public string   Title     { get; set; } = "";
-        public string   Body      { get; set; } = "";
-        public string   Type      { get; set; } = "system";
-        public bool     IsRead    { get; set; }
-        public DateTime CreatedAt { get; set; }
-    }
-}

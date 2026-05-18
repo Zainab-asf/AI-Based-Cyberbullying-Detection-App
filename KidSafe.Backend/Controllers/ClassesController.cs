@@ -21,13 +21,12 @@ public class ClassesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetClasses()
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var role = User.FindFirst(ClaimTypes.Role)!.Value;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Child";
 
-        var q = _db.Classes
-            .Include(c => c.Teacher)
-            .Include(c => c.Students)
-            .AsQueryable();
+        // Use projection-only query — EF translates nav-property access inside Select
+        // without issuing per-row sub-queries (avoids N+1 on Students/Content counts).
+        var q = _db.Classes.AsNoTracking().AsQueryable();
 
         q = role switch
         {
@@ -37,7 +36,6 @@ public class ClassesController : ControllerBase
         };
 
         var list = await q
-            .Include(c => c.Content)
             .Select(c => new
             {
                 c.Id, c.Name, c.Section, c.Subject,
@@ -57,6 +55,7 @@ public class ClassesController : ControllerBase
     public async Task<IActionResult> GetClass(int id)
     {
         var cls = await _db.Classes
+            .AsNoTracking()
             .Include(c => c.Teacher)
             .Include(c => c.Students).ThenInclude(cs => cs.Student)
             .FirstOrDefaultAsync(c => c.Id == id);
@@ -160,30 +159,34 @@ public class ClassesController : ControllerBase
     [Authorize(Roles = "Child")]
     public async Task<IActionResult> GetMyClassmates()
     {
-        var uid = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
 
-        var myClass = await _db.ClassStudents
+        // Single projection query — no chained ThenInclude, no repeated TOP(1) sub-queries.
+        var enrollment = await _db.ClassStudents
+            .AsNoTracking()
             .Where(cs => cs.StudentId == uid)
-            .Include(cs => cs.Class)
-                .ThenInclude(c => c.Students)
-                    .ThenInclude(s => s.Student)
-            .Select(cs => cs.Class)
+            .Select(cs => new
+            {
+                cs.Class.Name,
+                cs.Class.Section,
+                Classmates = cs.Class.Students
+                    .Where(s => s.StudentId != uid)
+                    .Select(s => new
+                    {
+                        s.Student.Id,
+                        s.Student.DisplayName,
+                        Avatar = s.Student.AvatarEmoji ?? "😊"
+                    })
+                    .ToList()
+            })
             .FirstOrDefaultAsync();
 
-        if (myClass is null)
+        if (enrollment is null)
             return Ok(new { className = (string?)null, section = (string?)null,
                             classmates = Array.Empty<object>() });
 
-        var classmates = myClass.Students
-            .Where(s => s.StudentId != uid)
-            .Select(s => new
-            {
-                s.Student.Id,
-                s.Student.DisplayName,
-                Avatar = s.Student.AvatarEmoji ?? "😊"
-            }).ToList();
-
-        return Ok(new { className = myClass.Name, section = myClass.Section, classmates });
+        return Ok(new { className = enrollment.Name, section = enrollment.Section,
+                        classmates = enrollment.Classmates });
     }
 
     // ── GET /classes/{id}/messages  (class group chat history) ────
@@ -192,6 +195,7 @@ public class ClassesController : ControllerBase
     public async Task<IActionResult> GetMessages(int id, [FromQuery] int take = 50)
     {
         var msgs = await _db.ChatMessages
+            .AsNoTracking()
             .Where(m => m.ClassId == id)
             .Include(m => m.Sender)
             .OrderByDescending(m => m.Timestamp)

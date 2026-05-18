@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using KidSafe.MAUI.Services;
 
+#pragma warning disable CA1416
+
 namespace KidSafe.MAUI;
 
 public static class MauiProgram
@@ -22,6 +24,7 @@ public static class MauiProgram
 
         // ── Singleton services ────────────────────────────────────────
         builder.Services.AddSingleton<AuthStateService>();
+        builder.Services.AddSingleton<SidebarService>();
         builder.Services.AddSingleton<ChatHubService>();
         builder.Services.AddSingleton<FcmService>();
 
@@ -29,9 +32,30 @@ public static class MauiProgram
         builder.Services.AddTransient<AuthDelegatingHandler>();
 
         builder.Services.AddHttpClient<ApiService>(c =>
-                c.BaseAddress = new Uri("http://localhost:5000/"))
+            {
+                c.BaseAddress = new Uri("http://localhost:5000/");
+                c.Timeout     = TimeSpan.FromSeconds(10);   // fail fast if backend down
+            })
             .AddHttpMessageHandler<AuthDelegatingHandler>();
 
-        return builder.Build();
+        var app = builder.Build();
+
+        // ── Global exception handlers ─────────────────────────────────
+        // Prevent unhandled background-thread and fire-and-forget exceptions
+        // from crashing the app or triggering VS "User-Unhandled" dialogs.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[KidSafe] UnhandledException: {e.ExceptionObject}");
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            e.SetObserved();
+            System.Diagnostics.Debug.WriteLine(
+                $"[KidSafe] UnobservedTaskException: {e.Exception}");
+        };
+
+        return app;
     }
 }

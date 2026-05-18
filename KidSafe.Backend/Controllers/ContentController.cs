@@ -27,6 +27,7 @@ public class ContentController : ControllerBase
     public async Task<IActionResult> GetClassContent(int classId)
     {
         var items = await _db.ContentItems
+            .AsNoTracking()
             .Where(ci => ci.ClassId == classId)
             .Include(ci => ci.Teacher)
             .OrderByDescending(ci => ci.CreatedAt)
@@ -51,14 +52,15 @@ public class ContentController : ControllerBase
     public async Task<IActionResult> GetContent(int id)
     {
         var ci = await _db.ContentItems
+            .AsNoTracking()
             .Include(c => c.Teacher)
             .Include(c => c.Submissions).ThenInclude(s => s.Student)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (ci == null) return NotFound();
 
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var role = User.FindFirst(ClaimTypes.Role)!.Value;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Child";
 
         object? mySubmission = null;
         if (role == "Child")
@@ -95,7 +97,7 @@ public class ContentController : ControllerBase
     [RequestSizeLimit(50_000_000)] // 50 MB
     public async Task<IActionResult> CreateContent([FromForm] CreateContentDto dto)
     {
-        var uid = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
 
         string? filePath = null;
         string? fileType = null;
@@ -144,8 +146,8 @@ public class ContentController : ControllerBase
     [Authorize(Roles = "Teacher,Admin")]
     public async Task<IActionResult> DeleteContent(int id)
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var role = User.FindFirst(ClaimTypes.Role)!.Value;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Teacher";
 
         var item = await _db.ContentItems.FindAsync(id);
         if (item == null) return NotFound();
@@ -172,7 +174,7 @@ public class ContentController : ControllerBase
     [RequestSizeLimit(20_000_000)]
     public async Task<IActionResult> Submit(int id, [FromForm] SubmitAssignmentDto dto)
     {
-        var uid = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
 
         var item = await _db.ContentItems.FindAsync(id);
         if (item == null || item.Type != "Assignment") return NotFound();

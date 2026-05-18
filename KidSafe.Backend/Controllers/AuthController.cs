@@ -38,7 +38,7 @@ public class AuthController : ControllerBase
         [FromBody] AvatarDto dto,
         [FromServices] AppDbContext db)
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         var user = await db.Users.FindAsync(uid);
         if (user == null) return NotFound();
         user.AvatarEmoji = dto.Emoji;
@@ -51,7 +51,7 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetMe([FromServices] AppDbContext db)
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         var user = await db.Users.FindAsync(uid);
         if (user == null) return NotFound();
         return Ok(new {
@@ -67,7 +67,7 @@ public class AuthController : ControllerBase
         [FromBody] UpdateProfileDto dto,
         [FromServices] AppDbContext db)
     {
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         var user = await db.Users.FindAsync(uid);
         if (user == null) return NotFound();
 
@@ -93,7 +93,7 @@ public class AuthController : ControllerBase
         if (dto.NewPassword.Length < 6)
             return BadRequest("New password must be at least 6 characters.");
 
-        var uid  = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return Unauthorized();
         var user = await db.Users.FindAsync(uid);
         if (user == null) return NotFound();
 
